@@ -1,0 +1,122 @@
+export type AccountStatus = 'DISABLED' | 'CONNECTING' | 'ONLINE' | 'OFFLINE';
+export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
+
+export type BotAccount = {
+  id: string;
+  name: string;
+  appId: string;
+  appSecret: string;
+  appSecretMasked: string;
+  status: AccountStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PublicBotAccount = Omit<BotAccount, 'appSecret'>;
+
+export type Conversation = {
+  id: string;
+  accountId: string;
+  peerId: string;
+  peerType: 'user' | 'group';
+  peerName: string;
+  lastMessage: string;
+  lastInboundMsgId: string | null;
+  updatedAt: string;
+  // 扩展字段
+  unreadCount?: number;
+  isPinned?: boolean;
+  tags?: string[];
+  remark?: string;
+  avatar?: string;
+};
+
+export type MessageStatus = 'pending' | 'sent' | 'failed';
+
+export type Message = {
+  id: string;
+  accountId: string;
+  conversationId: string;
+  direction: 'in' | 'out';
+  text: string;
+  createdAt: string;
+  // 扩展字段
+  status?: MessageStatus;
+  replyTo?: string;
+  mentionedUsers?: string[];
+};
+
+export type QuickReply = {
+  id: string;
+  category: string;
+  text: string;
+  shortcut?: string;
+  createdAt: string;
+};
+
+export type PlatformLog = {
+  id: string;
+  level: LogLevel;
+  message: string;
+  createdAt: string;
+};
+
+export type PlatformStatus = {
+  connected: boolean;
+  connecting: boolean;
+  connectedAccountId: string | null;
+  connectedAccountName: string | null;
+  lastConnectedAt: string | null;
+  tokenExpiresAt: string | null;
+  lastError: string | null;
+};
+
+export type SystemLog = {
+  id: string;
+  level: LogLevel;
+  category: 'framework' | 'plugin' | 'openapi' | 'config';
+  message: string;
+  createdAt: string;
+};
+
+export type PluginInfo = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  version: string;
+  description: string;
+  updatedAt: string;
+};
+
+export type AppConfig = {
+  webName: string;
+  notice: string;
+  allowOpenApi: boolean;
+  defaultIntent: number;
+  updatedAt: string;
+};
+
+export type OpenApiToken = {
+  id: string;
+  name: string;
+  token: string;
+  enabled: boolean;
+  createdAt: string;
+};
+
+export type StatisticsSnapshot = {
+  date: string;
+  activeAccounts: number;
+  totalAccounts: number;
+  conversations: number;
+  privateConversations: number;
+  groupConversations: number;
+  inboundMessages: number;
+  outboundMessages: number;
+  platformConnected: boolean;
+  platformUptime: number;
+  quickReplies: number;
+  plugins: number;
+  topGroups: Array<{ id: string; name: string; messageCount: number }>;
+  topUsers: Array<{ id: string; name: string; messageCount: number }>;
+};

@@ -1,0 +1,15 @@
+{
+  "name": "qqbot-platform",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "backend",
+    "webui"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w backend",
+    "dev:backend": "npm run dev -w backend",
+    "dev:webui": "npm run dev -w webui",
+    "build": "npm run build -w backend && npm run build -w webui"
+  }
+}

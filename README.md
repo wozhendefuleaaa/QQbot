@@ -1,0 +1,271 @@
+# QQ 机器人管理平台
+
+基于 QQ 官方机器人 API 的现代化管理平台，支持多账号管理、消息收发、插件系统和第三方集成。
+
+## 功能特性
+
+### 核心功能
+- 🤖 **多账号管理** - 支持添加、管理多个 QQ 机器人账号
+- 💬 **消息收发** - 支持私聊、群聊消息的收发与历史记录
+- 🔌 **插件系统** - 支持热加载、命令系统、权限控制
+- 🔗 **第三方集成** - 提供 RESTful API 供外部系统调用
+
+### 稳定性优化
+- ✅ 消息回复过期检查（120秒有效期）
+- ✅ 发送频率限制（防止 22007 错误）
+- ✅ 自动重连机制
+
+### 功能增强
+- ✅ 消息撤回功能
+- ✅ 图片上传发送
+- ✅ 群管理（禁言/踢人）
+- ✅ 消息分页加载
+
+## 快速开始
+
+### 环境要求
+- Node.js >= 18
+- npm >= 9
+- 可选：MySQL、Redis（用于持久化）
+
+### 安装
+
+```bash
+# 克隆项目
+git clone <repository-url>
+cd wawa-qqbot
+
+# 安装依赖
+npm install
+
+# 复制环境变量
+cp .env.example .env
+```
+
+### 配置
+
+编辑 `.env` 文件，填入 QQ 机器人配置：
+
+```env
+# QQ 官方平台配置
+QQ_APP_ID=你的AppID
+QQ_CLIENT_SECRET=你的ClientSecret
+
+# 可选配置
+QQ_GATEWAY_INTENTS=0
+QQ_MESSAGE_API_TEMPLATE=
+```
+
+### 运行
+
+```bash
+# 开发模式
+npm run dev:backend  # 启动后端 (端口 3000)
+npm run dev:webui    # 启动前端 (端口 5173)
+
+# 生产构建
+npm run build
+npm run start
+```
+
+### Docker 部署
+
+```bash
+docker compose up -d
+```
+
+## WebUI 界面
+
+访问 `http://localhost:5173` 进入管理界面：
+
+- **账号管理** - 添加、管理机器人账号
+- **聊天管理** - 查看会话、发送消息、撤回消息
+- **平台连接** - 连接/断开 QQ 平台，查看日志
+- **配置中心** - 系统配置
+- **日志中心** - 系统日志、平台日志
+- **统计中心** - 消息统计、活跃度分析
+- **开放 API** - 管理 API Token
+- **插件中心** - 管理插件
+
+## 插件系统
+
+### 插件结构
+
+```typescript
+// backend/src/plugins/my-plugin.ts
+import { Plugin, PluginContext, MessageEvent } from '../core/plugin-types.js';
+
+const myPlugin: Plugin = {
+  id: 'my-plugin',
+  name: '我的插件',
+  version: '1.0.0',
+  description: '插件描述',
+  enabled: true,
+  priority: 100,
+
+  // 加载时调用
+  onLoad: async (ctx: PluginContext) => {
+    ctx.log('info', '插件已加载');
+  },
+
+  // 卸载时调用
+  onUnload: async () => {
+    console.log('插件已卸载');
+  },
+
+  // 处理消息
+  onMessage: async (event: MessageEvent, ctx: PluginContext) => {
+    // 返回 true 拦截消息，false 继续传递
+    return false;
+  },
+
+  // 定义命令
+  commands: [
+    {
+      name: 'hello',
+      aliases: ['你好', 'hi'],
+      description: '打招呼',
+      permission: 'public',  // public | admin | owner
+      cooldown: 5,           // 冷却时间（秒）
+      handler: async (args, event, ctx) => {
+        return '你好！';
+      }
+    }
+  ]
+};
+
+export default myPlugin;
+```
+
+### 命令系统
+
+- **权限控制**: `public`（公开）、`admin`（管理员）、`owner`（所有者）
+- **冷却时间**: 防止命令刷屏
+- **命令别名**: 支持多个触发词
+- **内置帮助**: `/help` 或 `/帮助`
+
+### 插件 API
+
+```typescript
+interface PluginContext {
+  // 发送消息
+  sendMessage(targetId: string, targetType: 'user' | 'group', text: string): Promise<void>;
+  
+  // 记录日志
+  log(level: 'info' | 'warn' | 'error', message: string): void;
+  
+  // 获取当前连接账号
+  getConnectedAccountId(): string | null;
+}
+```
+
+## 外部 API
+
+### 认证
+
+所有外部 API 使用 Bearer Token 认证：
+
+```bash
+# 创建 Token
+curl -X POST http://localhost:3000/api/openapi/tokens \
+  -H "Content-Type: application/json" \
+  -d '{"name":"my-token"}'
+
+# 使用 Token
+curl http://localhost:3000/api/external/status \
+  -H "Authorization: Bearer qqbot_xxx"
+```
+
+### API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/external/status` | GET | 获取机器人状态 |
+| `/api/external/connect` | POST | 连接机器人 |
+| `/api/external/disconnect` | POST | 断开连接 |
+| `/api/external/send` | POST | 发送消息 |
+| `/api/external/conversations` | GET | 获取会话列表 |
+| `/api/external/conversations/:id/messages` | GET | 获取会话消息 |
+| `/api/external/accounts` | GET | 获取账号列表 |
+| `/api/external/logs` | GET | 获取平台日志 |
+| `/api/external/statistics` | GET | 获取统计信息 |
+
+### 发送消息示例
+
+```bash
+curl -X POST http://localhost:3000/api/external/send \
+  -H "Authorization: Bearer qqbot_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "targetId": "用户ID或群ID",
+    "targetType": "user",
+    "message": "你好！"
+  }'
+```
+
+## 项目结构
+
+```
+wawa-qqbot/
+├── backend/                 # 后端代码
+│   ├── src/
+│   │   ├── core/           # 核心模块
+│   │   │   ├── app.ts      # 应用入口
+│   │   │   ├── store.ts    # 状态管理
+│   │   │   ├── plugin-manager.ts    # 插件管理
+│   │   │   └── plugin-types.ts      # 插件类型
+│   │   ├── modules/        # 功能模块
+│   │   │   ├── accounts/   # 账号管理
+│   │   │   ├── chat/       # 聊天功能
+│   │   │   ├── platform/   # 平台连接
+│   │   │   ├── plugins/    # 插件路由
+│   │   │   ├── external/   # 外部 API
+│   │   │   └── ...
+│   │   ├── plugins/        # 插件目录
+│   │   └── types.ts        # 类型定义
+│   └── data/               # 数据存储
+├── webui/                  # 前端代码
+│   └── src/
+│       ├── modules/        # 页面模块
+│       └── services/       # API 服务
+└── docker-compose.yml      # Docker 编排
+```
+
+## 健康检查
+
+```bash
+# 健康检查
+curl http://localhost:3000/health
+
+# 就绪检查
+curl http://localhost:3000/ready
+```
+
+## 开发指南
+
+### 编译
+
+```bash
+# 编译后端
+cd backend && npm run build
+
+# 编译前端
+cd webui && npm run build
+```
+
+### 添加新插件
+
+1. 在 `backend/src/plugins/` 创建插件文件
+2. 编译后端：`npm run build`
+3. 插件会自动加载
+
+### 热重载插件
+
+```bash
+# 通过 API 重载插件
+curl -X POST http://localhost:3000/api/plugins/my-plugin/reload
+```
+
+## 许可证
+
+MIT License
