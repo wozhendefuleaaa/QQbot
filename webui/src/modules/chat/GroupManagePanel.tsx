@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
+import { cn } from '../../lib/utils';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 
 type GroupMember = {
   id: string;
@@ -165,87 +168,103 @@ export function GroupManagePanel({
   ];
 
   return (
-    <div className="group-manage-overlay">
-      <div className="group-manage-panel">
-        <div className="panel-header">
-          <h3>群管理 - {groupId}</h3>
-          <button type="button" className="btn-close" onClick={onClose}>×</button>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col m-4">
+        <CardHeader className="flex flex-row items-center justify-between border-b">
+          <CardTitle>群管理 - {groupId}</CardTitle>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            ×
+          </Button>
+        </CardHeader>
 
-        <div className="panel-body">
+        <CardContent className="flex-1 overflow-auto p-4">
           {!isConnected ? (
-            <div className="error-message">
-              <p>平台未连接或账号不匹配</p>
-              <p className="muted">请先连接到对应账号的平台</p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <p className="text-destructive font-medium">平台未连接或账号不匹配</p>
+              <p className="text-muted-foreground text-sm mt-1">请先连接到对应账号的平台</p>
             </div>
           ) : loading ? (
-            <div className="loading">加载中...</div>
+            <div className="flex items-center justify-center py-8">
+              <p className="text-muted-foreground">加载中...</p>
+            </div>
           ) : error ? (
-            <div className="error-message">
-              <p>{error}</p>
-              <button type="button" onClick={loadMembers}>重试</button>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <p className="text-destructive">{error}</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={loadMembers}>
+                重试
+              </Button>
             </div>
           ) : members.length === 0 ? (
-            <div className="empty-message">
-              <p>暂无群成员数据</p>
+            <div className="flex items-center justify-center py-8">
+              <p className="text-muted-foreground">暂无群成员数据</p>
             </div>
           ) : (
-            <div className="member-list">
-              <div className="member-count">共 {members.length} 名成员</div>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">共 {members.length} 名成员</p>
               {members.map((member) => (
-                <div key={member.id} className="member-item">
-                  <div className="member-info">
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                >
+                  <div className="flex items-center gap-3">
                     {member.avatar ? (
-                      <img src={member.avatar} alt={member.name} className="member-avatar" />
+                      <img
+                        src={member.avatar}
+                        alt={member.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
                     ) : (
-                      <div className="member-avatar placeholder">👤</div>
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-lg">
+                        👤
+                      </div>
                     )}
-                    <div className="member-details">
-                      <span className="member-name">{member.name}</span>
-                      <span className="member-id muted">ID: {member.id}</span>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{member.name}</span>
+                      <span className="text-xs text-muted-foreground">ID: {member.id}</span>
                     </div>
                   </div>
-                  <div className="member-actions">
+                  <div className="flex items-center gap-2">
                     <select
                       value={muteDuration[member.id] || '60'}
                       onChange={(e) => setMuteDuration({ ...muteDuration, [member.id]: e.target.value })}
                       disabled={actionLoading === member.id}
+                      className="h-9 px-2 rounded-md border border-input bg-background text-sm"
                     >
                       {durationOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
-                    <button
-                      type="button"
-                      className="btn-mute"
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleMute(member.id)}
                       disabled={actionLoading === member.id}
                     >
                       禁言
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-unmute"
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleUnmute(member.id)}
                       disabled={actionLoading === member.id}
                     >
                       解禁
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-kick"
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
                       onClick={() => handleKick(member.id, member.name)}
                       disabled={actionLoading === member.id}
                     >
                       踢出
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

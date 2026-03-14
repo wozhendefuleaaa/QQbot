@@ -85,6 +85,17 @@ export type PluginInfo = {
   enabled: boolean;
   version: string;
   description: string;
+  author?: string;
+  priority?: number;
+  commands?: Array<{
+    name: string;
+    description: string;
+    usage?: string;
+    permission?: string;
+  }>;
+  hasOnMessage?: boolean;
+  hasCronJobs?: boolean;
+  loaded?: boolean;
   updatedAt: string;
 };
 

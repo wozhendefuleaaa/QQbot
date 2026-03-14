@@ -2,6 +2,11 @@ import { FormEvent, useRef, useState } from 'react';
 import { fmtTime } from '../../services/api';
 import { ChatMessage, Conversation, MessageStatus, QuickReply } from '../../types';
 import { GroupManagePanel } from './GroupManagePanel';
+import { cn } from '../../lib/utils';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Badge } from '../../components/ui/badge';
+import { Card } from '../../components/ui/card';
 
 type Props = {
   conversation: Conversation | undefined;
@@ -25,13 +30,25 @@ type Props = {
 
 function MessageStatusIndicator({ status }: { status?: MessageStatus }) {
   if (!status || status === 'sent') {
-    return <span className="msg-status sent" title="已发送">✓✓</span>;
+    return (
+      <span className="text-green-500 text-xs" title="已发送">
+        ✓✓
+      </span>
+    );
   }
   if (status === 'pending') {
-    return <span className="msg-status pending" title="发送中">✓</span>;
+    return (
+      <span className="text-yellow-500 text-xs animate-pulse" title="发送中">
+        ✓
+      </span>
+    );
   }
   if (status === 'failed') {
-    return <span className="msg-status failed" title="发送失败">✗</span>;
+    return (
+      <span className="text-red-500 text-xs" title="发送失败">
+        ✗
+      </span>
+    );
   }
   return null;
 }
@@ -174,68 +191,74 @@ export function MessagePanel({
   };
 
   return (
-    <div className="message-panel">
+    <div className="flex flex-col flex-1 bg-card overflow-hidden">
       {/* 头部 */}
-      <div className="msg-panel-header">
-        <div className="msg-panel-title">
-          <h2>{conversation ? (conversation.remark || conversation.peerName) : '选择会话'}</h2>
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">
+            {conversation ? (conversation.remark || conversation.peerName) : '选择会话'}
+          </h2>
           {conversation && (
-            <span className={`conv-type-tag ${conversation.peerType}`}>
+            <Badge variant={conversation.peerType === 'group' ? 'default' : 'secondary'}>
               {conversation.peerType === 'group' ? '群聊' : '私聊'}
-            </span>
+            </Badge>
           )}
         </div>
-        <div className="msg-panel-actions">
+        <div className="flex items-center gap-2">
           {conversation && conversation.peerType === 'group' && accountId && (
-            <button
-              type="button"
-              className="btn-group-manage"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowGroupManage(true)}
-              title="群管理"
             >
               ⚙️ 群管理
-            </button>
+            </Button>
           )}
           {conversation && (
-            <div className="msg-panel-info">
-              <span className="muted">ID: {conversation.peerId}</span>
-            </div>
+            <span className="text-sm text-muted-foreground">
+              ID: {conversation.peerId}
+            </span>
           )}
         </div>
       </div>
 
       {/* 消息区域 */}
-      <div className="msg-list-container" onClick={closeContextMenu}>
+      <div className="flex-1 overflow-auto p-4" onClick={closeContextMenu}>
         {messages.length === 0 ? (
-          <div className="msg-empty">
-            <p className="muted">暂无消息</p>
+          <div className="flex items-center justify-center h-full">
+            <p className="text-muted-foreground">暂无消息</p>
           </div>
         ) : (
-          <div className="msg-list">
+          <div className="space-y-3">
             {/* 加载更多按钮 */}
             {hasMoreMessages && (
-              <div className="load-more-container">
-                <button
-                  type="button"
-                  className="btn-load-more"
+              <div className="flex justify-center mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={onLoadMore}
                   disabled={loadingMore}
                 >
                   {loadingMore ? '加载中...' : '↑ 加载更多消息'}
-                </button>
+                </Button>
               </div>
             )}
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`msg-bubble ${msg.direction === 'out' ? 'outbound' : 'inbound'}`}
+                className={cn(
+                  "max-w-[80%] p-3 rounded-lg cursor-context-menu",
+                  msg.direction === 'out'
+                    ? "ml-auto bg-primary text-primary-foreground"
+                    : "mr-auto bg-muted"
+                )}
                 onContextMenu={(e) => handleContextMenu(e, msg.id)}
               >
                 {/* 引用消息 */}
                 {msg.replyTo && (
-                  <div className="msg-reply-to">
-                    <span className="reply-indicator">↩</span>
-                    <span className="reply-text">
+                  <div className="flex items-center gap-1 mb-1 text-xs opacity-70 border-l-2 pl-2">
+                    <span>↩</span>
+                    <span className="truncate">
                       {messages.find((m) => m.id === msg.replyTo)?.text.slice(0, 50) || '原消息'}
                       ...
                     </span>
@@ -243,21 +266,21 @@ export function MessagePanel({
                 )}
 
                 {/* 消息内容 */}
-                <div className="msg-content">
-                  <p className="msg-text">{msg.text}</p>
-                </div>
+                <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
 
                 {/* 消息元信息 */}
-                <div className="msg-meta">
-                  <span className="msg-time">{fmtTime(msg.createdAt)}</span>
+                <div className="flex items-center justify-end gap-2 mt-1">
+                  <span className="text-xs opacity-70">{fmtTime(msg.createdAt)}</span>
                   {msg.direction === 'out' && <MessageStatusIndicator status={msg.status} />}
                 </div>
 
                 {/* @提及 */}
                 {msg.mentionedUsers && msg.mentionedUsers.length > 0 && (
-                  <div className="msg-mentions">
+                  <div className="flex flex-wrap gap-1 mt-1">
                     {msg.mentionedUsers.map((user) => (
-                      <span key={user} className="mention-tag">@{user}</span>
+                      <Badge key={user} variant="outline" className="text-xs">
+                        @{user}
+                      </Badge>
                     ))}
                   </div>
                 )}
@@ -269,103 +292,120 @@ export function MessagePanel({
 
         {/* 右键菜单 */}
         {showContextMenu && (
-          <div
-            className="context-menu"
+          <Card
+            className="fixed z-50 p-1 shadow-lg min-w-[100px]"
             style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button type="button" onClick={handleCopy}>复制</button>
-            <button type="button" onClick={handleReply}>回复</button>
+            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleCopy}>
+              复制
+            </Button>
+            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleReply}>
+              回复
+            </Button>
             {messages.find((m) => m.id === selectedMsgId)?.status === 'failed' && onRetry && (
-              <button type="button" onClick={handleRetry} className="retry-btn">重试</button>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-yellow-600" onClick={handleRetry}>
+                重试
+              </Button>
             )}
             {messages.find((m) => m.id === selectedMsgId)?.direction === 'out' && onRecall && (
-              <button type="button" onClick={handleRecall} className="recall-btn">撤回</button>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-red-600" onClick={handleRecall}>
+                撤回
+              </Button>
             )}
-          </div>
+          </Card>
         )}
       </div>
 
       {/* 输入区域 */}
-      <form onSubmit={onSendMessage} className="msg-input-area">
+      <form onSubmit={onSendMessage} className="border-t p-4 space-y-3 bg-card">
         {/* 目标选择 */}
-        <div className="input-row target-row">
-          <div className="segmented">
-            <button
+        <div className="flex gap-2">
+          <div className="flex rounded-lg border overflow-hidden">
+            <Button
               type="button"
-              className={sendForm.targetType === 'user' ? 'seg active' : 'seg'}
+              variant={sendForm.targetType === 'user' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none"
               onClick={() => onSendFormChange({ ...sendForm, targetType: 'user' })}
             >
               私聊
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={sendForm.targetType === 'group' ? 'seg active' : 'seg'}
+              variant={sendForm.targetType === 'group' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none"
               onClick={() => onSendFormChange({ ...sendForm, targetType: 'group' })}
             >
               群聊
-            </button>
+            </Button>
           </div>
-          <input
+          <Input
             type="text"
             value={sendForm.targetId}
             onChange={(e) => onSendFormChange({ ...sendForm, targetId: e.target.value })}
             placeholder={sendForm.targetType === 'group' ? '群 ID' : '用户 ID'}
             required
+            className="flex-1"
           />
         </div>
 
         {/* 快捷回复面板 */}
         {showQuickReplies && (
-          <div className="quick-reply-panel">
-            <div className="quick-reply-header">
-              <span>快捷回复</span>
-              <button type="button" className="btn-close" onClick={() => setShowQuickReplies(false)}>×</button>
+          <Card className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">快捷回复</span>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowQuickReplies(false)}>
+                ×
+              </Button>
             </div>
-            <div className="quick-reply-list">
+            <div className="flex flex-wrap gap-2">
               {quickReplies.length === 0 ? (
-                <p className="muted">暂无快捷回复</p>
+                <p className="text-sm text-muted-foreground">暂无快捷回复</p>
               ) : (
                 quickReplies.map((qr) => (
-                  <button
+                  <Button
                     key={qr.id}
-                    type="button"
-                    className="quick-reply-item"
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleUseQuickReply(qr.text)}
                     title={qr.text}
                   >
                     {qr.text.length > 30 ? `${qr.text.slice(0, 30)}...` : qr.text}
-                  </button>
+                  </Button>
                 ))
               )}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* 消息输入 */}
-        <div className="input-row compose-row">
-          <button
+        <div className="flex gap-2">
+          <Button
             type="button"
-            className={`btn-quick-reply ${showQuickReplies ? 'active' : ''}`}
+            variant={showQuickReplies ? 'default' : 'outline'}
+            size="icon"
             onClick={handleToggleQuickReplies}
             title="快捷回复"
           >
             📝
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn-upload-image"
+            variant="outline"
+            size="icon"
             onClick={handleSelectImage}
             disabled={isUploading || !conversation}
             title="发送图片"
           >
             {isUploading ? '⏳' : '🖼️'}
-          </button>
+          </Button>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            style={{ display: 'none' }}
+            className="hidden"
             onChange={handleImageChange}
           />
           <textarea
@@ -375,8 +415,9 @@ export function MessagePanel({
             placeholder="输入消息，Enter 发送，Shift+Enter 换行"
             rows={3}
             required
+            className="flex-1 min-h-[80px] px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none"
           />
-          <button type="submit" className="btn-send">发送</button>
+          <Button type="submit">发送</Button>
         </div>
       </form>
 

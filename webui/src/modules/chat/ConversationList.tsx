@@ -2,6 +2,11 @@ import { FormEvent, useMemo, useState } from 'react';
 import { fmtTime } from '../../services/api';
 import { api } from '../../services/api';
 import { BotAccount, Conversation } from '../../types';
+import { cn } from '../../lib/utils';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Badge } from '../../components/ui/badge';
+import { Card } from '../../components/ui/card';
 
 type Props = {
   conversations: Conversation[];
@@ -109,191 +114,222 @@ export function ConversationList({
   };
 
   return (
-    <div className="conversation-list-container">
+    <div className="w-72 border-r bg-card flex flex-col">
       {/* 搜索和筛选栏 */}
-      <div className="conv-list-header">
-        <h2>会话列表</h2>
-        <div className="conv-filter-row">
-          <input
+      <div className="p-4 border-b space-y-3">
+        <h2 className="font-semibold">会话列表</h2>
+        <div className="flex gap-2">
+          <Input
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="搜索会话..."
-            className="conv-search"
+            className="flex-1 h-8 text-sm"
           />
-          <button
-            type="button"
-            className={`btn-icon ${showPinnedOnly ? 'active' : ''}`}
+          <Button
+            variant={showPinnedOnly ? 'secondary' : 'ghost'}
+            size="sm"
+            className="px-2"
             onClick={() => setShowPinnedOnly(!showPinnedOnly)}
             title={showPinnedOnly ? '显示全部' : '仅显示置顶'}
           >
             📌
-          </button>
+          </Button>
         </div>
 
         {/* 标签筛选 */}
         {allTags.length > 0 && (
-          <div className="tag-filter-row">
-            <span className="tag-filter-label">标签：</span>
-            <div className="tag-filter-chips">
-              <button
-                type="button"
-                className={`tag-chip ${tagFilter === null ? 'active' : ''}`}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">标签：</span>
+            <div className="flex gap-1 flex-wrap">
+              <Badge
+                variant={tagFilter === null ? 'default' : 'outline'}
+                className="cursor-pointer text-xs"
                 onClick={() => setTagFilter(null)}
               >
                 全部
-              </button>
+              </Badge>
               {allTags.map((tag) => (
-                <button
+                <Badge
                   key={tag}
-                  type="button"
-                  className={`tag-chip ${tagFilter === tag ? 'active' : ''}`}
+                  variant={tagFilter === tag ? 'default' : 'outline'}
+                  className="cursor-pointer text-xs"
                   onClick={() => setTagFilter(tag)}
                 >
                   {tag}
-                </button>
+                </Badge>
               ))}
             </div>
           </div>
         )}
 
-        <div className="conv-count">
+        <div className="text-xs text-muted-foreground">
           {filterAccountId ? (
-            <span className="muted">当前账号：{getAccountName(filterAccountId)}</span>
+            <span>当前账号：{getAccountName(filterAccountId)}</span>
           ) : (
-            <span className="muted">全部会话：{filteredConversations.length}</span>
+            <span>全部会话：{filteredConversations.length}</span>
           )}
         </div>
       </div>
 
       {/* 会话列表 */}
-      <div className="conv-list">
+      <div className="flex-1 overflow-auto">
         {filteredConversations.length === 0 ? (
-          <div className="conv-empty">
-            <p className="muted">暂无会话</p>
+          <div className="p-4 text-center text-muted-foreground text-sm">
+            暂无会话
           </div>
         ) : (
-          filteredConversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={`conv-item-wrapper ${selectedConversationId === conv.id ? 'active' : ''}`}
-            >
-              <button
-                className={`conv-item ${conv.isPinned ? 'pinned' : ''}`}
-                onClick={() => onSelectConversation(conv)}
-                type="button"
+          <div className="space-y-1 p-2">
+            {filteredConversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={cn(
+                  "relative rounded-lg transition-colors",
+                  selectedConversationId === conv.id && "bg-secondary"
+                )}
               >
-                {/* 头像 */}
-                <div className={`conv-avatar ${conv.peerType}`}>
-                  {conv.avatar ? (
-                    <img src={conv.avatar} alt={conv.peerName} />
-                  ) : (
-                    <span>{conv.peerName.charAt(0).toUpperCase()}</span>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-start gap-3 h-auto py-2 px-3 text-left",
+                    conv.isPinned && "border-l-2 border-l-primary"
                   )}
-                  {conv.unreadCount && conv.unreadCount > 0 && (
-                    <span className="unread-badge">{conv.unreadCount > 99 ? '99+' : conv.unreadCount}</span>
-                  )}
-                </div>
-
-                {/* 会话信息 */}
-                <div className="conv-content">
-                  <div className="conv-title-row">
-                    <span className={`conv-type-tag ${conv.peerType}`}>
-                      {conv.peerType === 'group' ? '群' : '私'}
-                    </span>
-                    <span className="conv-name">{conv.remark || conv.peerName}</span>
-                    <span className="conv-time">{fmtTime(conv.updatedAt)}</span>
-                  </div>
-                  <div className="conv-preview">
-                    <span className="conv-last-msg">{conv.lastMessage || '暂无消息'}</span>
-                  </div>
-
-                  {/* 标签显示 */}
-                  {(conv.tags || []).length > 0 && (
-                    <div className="conv-tags">
-                      {(conv.tags || []).map((tag) => (
-                        <span key={tag} className="conv-tag">{tag}</span>
-                      ))}
+                  onClick={() => onSelectConversation(conv)}
+                >
+                  {/* 头像 */}
+                  <div className="relative flex-shrink-0">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center font-medium text-sm",
+                      conv.peerType === 'group' ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                    )}>
+                      {conv.avatar ? (
+                        <img src={conv.avatar} alt={conv.peerName} className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        <span>{conv.peerName.charAt(0).toUpperCase()}</span>
+                      )}
                     </div>
-                  )}
-
-                  {/* 多账号模式下显示来源账号 */}
-                  {!filterAccountId && (
-                    <div className="conv-account-tag">
-                      <span className="account-label">{getAccountName(conv.accountId)}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* 置顶标记 */}
-                {conv.isPinned && <span className="pin-indicator">📌</span>}
-              </button>
-
-              {/* 标签编辑按钮 */}
-              <button
-                type="button"
-                className="conv-tag-edit-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingTagsFor(editingTagsFor === conv.id ? null : conv.id);
-                }}
-                title="管理标签"
-              >
-                🏷️
-              </button>
-
-              {/* 标签编辑面板 */}
-              {editingTagsFor === conv.id && (
-                <div className="conv-tag-editor" onClick={(e) => e.stopPropagation()}>
-                  <div className="tag-editor-header">
-                    <span>管理标签</span>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      onClick={() => setEditingTagsFor(null)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="tag-editor-tags">
-                    {(conv.tags || []).map((tag) => (
-                      <span key={tag} className="tag-item">
-                        {tag}
-                        <button
-                          type="button"
-                          className="tag-remove-btn"
-                          onClick={() => handleRemoveTag(conv.id, tag)}
-                        >
-                          ×
-                        </button>
+                    {conv.unreadCount && conv.unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                        {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
                       </span>
-                    ))}
-                    {(conv.tags || []).length === 0 && (
-                      <span className="muted">暂无标签</span>
                     )}
                   </div>
-                  <form
-                    className="tag-add-form"
-                    onSubmit={(e) => handleAddTag(e, conv.id)}
-                  >
-                    <input
-                      type="text"
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      placeholder="添加新标签..."
-                      maxLength={20}
-                    />
-                    <button type="submit" className="btn-add-tag">
-                      添加
-                    </button>
-                  </form>
-                  {(conv.tags || []).length >= 5 && (
-                    <span className="tag-limit-hint">最多5个标签</span>
+
+                  {/* 会话信息 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={cn(
+                        "text-xs px-1",
+                        conv.peerType === 'group' ? "border-blue-300 text-blue-600" : "border-green-300 text-green-600"
+                      )}>
+                        {conv.peerType === 'group' ? '群' : '私'}
+                      </Badge>
+                      <span className="font-medium text-sm truncate flex-1">{conv.remark || conv.peerName}</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{fmtTime(conv.updatedAt)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {conv.lastMessage || '暂无消息'}
+                    </p>
+
+                    {/* 标签显示 */}
+                    {(conv.tags || []).length > 0 && (
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        {(conv.tags || []).slice(0, 3).map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-xs px-1 py-0 h-4">
+                            {tag}
+                          </Badge>
+                        ))}
+                        {(conv.tags || []).length > 3 && (
+                          <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                            +{(conv.tags || []).length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 多账号模式下显示来源账号 */}
+                    {!filterAccountId && (
+                      <span className="text-xs text-muted-foreground mt-0.5 block">
+                        {getAccountName(conv.accountId)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 置顶标记 */}
+                  {conv.isPinned && (
+                    <span className="absolute top-1 right-1 text-xs">📌</span>
                   )}
-                </div>
-              )}
-            </div>
-          ))
+                </Button>
+
+                {/* 标签编辑按钮 */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute bottom-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingTagsFor(editingTagsFor === conv.id ? null : conv.id);
+                  }}
+                  title="管理标签"
+                >
+                  🏷️
+                </Button>
+
+                {/* 标签编辑面板 */}
+                {editingTagsFor === conv.id && (
+                  <Card className="absolute z-10 top-full left-0 right-0 mt-1 p-3 shadow-lg" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">管理标签</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => setEditingTagsFor(null)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {(conv.tags || []).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="gap-1">
+                          {tag}
+                          <button
+                            type="button"
+                            className="ml-1 hover:text-destructive"
+                            onClick={() => handleRemoveTag(conv.id, tag)}
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                      {(conv.tags || []).length === 0 && (
+                        <span className="text-xs text-muted-foreground">暂无标签</span>
+                      )}
+                    </div>
+                    <form
+                      className="flex gap-2"
+                      onSubmit={(e) => handleAddTag(e, conv.id)}
+                    >
+                      <Input
+                        type="text"
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        placeholder="添加新标签..."
+                        maxLength={20}
+                        className="flex-1 h-8 text-sm"
+                      />
+                      <Button type="submit" size="sm" className="h-8">
+                        添加
+                      </Button>
+                    </form>
+                    {(conv.tags || []).length >= 5 && (
+                      <span className="text-xs text-muted-foreground mt-1 block">最多5个标签</span>
+                    )}
+                  </Card>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

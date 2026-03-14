@@ -18,9 +18,18 @@ import {
   PlatformLog,
   PlatformStatus,
   PluginInfo,
+  PluginConfig,
   StatisticsSnapshot,
   SystemLog
 } from './types';
+import { Badge } from './components/ui/badge';
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarNav,
+  SidebarNavItem,
+} from './components/ui/sidebar';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState<MenuKey>('accounts');
@@ -53,7 +62,7 @@ function App() {
   const [logType, setLogType] = useState<'all' | 'framework' | 'plugin' | 'openapi' | 'config'>('all');
   const [snapshot, setSnapshot] = useState<StatisticsSnapshot | null>(null);
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
-  const [newPlugin, setNewPlugin] = useState({ name: '', description: '', version: '1.0.0' });
+  const [pluginConfig, setPluginConfig] = useState<PluginConfig | null>(null);
   const [openApiEnabled, setOpenApiEnabled] = useState(true);
   const [openApiTokens, setOpenApiTokens] = useState<OpenApiTokenView[]>([]);
   const [newTokenName, setNewTokenName] = useState('');
@@ -132,6 +141,11 @@ function App() {
     setPlugins(data.items);
   }, []);
 
+  const loadPluginConfig = useCallback(async () => {
+    const data = await api<PluginConfig>('/api/plugins/config');
+    setPluginConfig(data);
+  }, []);
+
   const loadOpenApi = useCallback(async () => {
     const data = await api<{ enabled: boolean; items: OpenApiTokenView[] }>('/api/openapi/tokens');
     setOpenApiEnabled(data.enabled);
@@ -148,11 +162,12 @@ function App() {
       loadLogs('all'),
       loadStatistics(),
       loadPlugins(),
+      loadPluginConfig(),
       loadOpenApi()
     ])
       .catch((e: Error) => setNotice(e.message))
       .finally(() => setLoading(false));
-  }, [loadAccounts, loadPlatformStatus, loadPlatformLogs, loadConfig, loadLogs, loadStatistics, loadPlugins, loadOpenApi]);
+  }, [loadAccounts, loadPlatformStatus, loadPlatformLogs, loadConfig, loadLogs, loadStatistics, loadPlugins, loadPluginConfig, loadOpenApi]);
 
   useEffect(() => {
     if (!selectedAccountId) return;
@@ -303,14 +318,12 @@ function App() {
     }
   };
 
-  const createPlugin = async (e: FormEvent) => {
-    e.preventDefault();
+  const togglePlugin = async (pluginId: string) => {
     setLoading(true);
     try {
-      await api('/api/plugins', { method: 'POST', body: JSON.stringify(newPlugin) });
-      setNewPlugin({ name: '', description: '', version: '1.0.0' });
+      await api(`/api/plugins/${pluginId}/toggle`, { method: 'POST' });
       await loadPlugins();
-      setNotice('插件已创建。');
+      setNotice('插件状态已更新。');
     } catch (err) {
       setNotice((err as Error).message);
     } finally {
@@ -318,12 +331,70 @@ function App() {
     }
   };
 
-  const togglePlugin = async (pluginId: string) => {
+  const reloadPlugin = async (pluginId: string) => {
     setLoading(true);
     try {
-      await api(`/api/plugins/${pluginId}/toggle`, { method: 'POST' });
+      await api(`/api/plugins/${pluginId}/reload`, { method: 'POST' });
       await loadPlugins();
-      setNotice('插件状态已更新。');
+      setNotice('插件已重新加载。');
+    } catch (err) {
+      setNotice((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deletePlugin = async (pluginId: string) => {
+    setLoading(true);
+    try {
+      await api(`/api/plugins/${pluginId}`, { method: 'DELETE' });
+      await loadPlugins();
+      setNotice('插件已删除。');
+    } catch (err) {
+      setNotice((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePluginConfig = async (config: Partial<PluginConfig>) => {
+    setLoading(true);
+    try {
+      const newConfig = { ...pluginConfig, ...config } as PluginConfig;
+      await api('/api/plugins/config', { method: 'PUT', body: JSON.stringify(newConfig) });
+      setPluginConfig(newConfig);
+      setNotice('插件配置已更新。');
+    } catch (err) {
+      setNotice((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const uploadPlugin = async (filename: string, content: string) => {
+    setLoading(true);
+    try {
+      await api('/api/plugins/upload', { method: 'POST', body: JSON.stringify({ filename, content }) });
+      await loadPlugins();
+      setNotice('插件已上传。');
+    } catch (err) {
+      setNotice((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPluginSource = async (id: string) => {
+    const data = await api<{ source: string; filename: string }>(`/api/plugins/${id}/source`);
+    return data;
+  };
+
+  const savePluginSource = async (id: string, content: string) => {
+    setLoading(true);
+    try {
+      await api(`/api/plugins/${id}/source`, { method: 'PUT', body: JSON.stringify({ content }) });
+      await loadPlugins();
+      setNotice('插件源码已保存。');
     } catch (err) {
       setNotice((err as Error).message);
     } finally {
@@ -373,31 +444,62 @@ function App() {
     { key: 'plugins', label: '插件中心' }
   ];
 
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">{config.webName || 'QQBot Console'}</div>
-        {menuItems.map((item) => (
-          <button
-            key={item.key}
-            className={`nav-btn ${activeMenu === item.key ? 'active' : ''}`}
-            onClick={() => setActiveMenu(item.key)}
-            type="button"
-          >
-            {item.label}
-          </button>
-        ))}
-      </aside>
+  const getMenuIcon = (key: MenuKey) => {
+    switch (key) {
+      case 'accounts': return '👥';
+      case 'chat': return '💬';
+      case 'platform': return '🔌';
+      case 'config': return '⚙️';
+      case 'logs': return '📋';
+      case 'statistics': return '📊';
+      case 'openapi': return '🔗';
+      case 'plugins': return '🧩';
+      default: return '📌';
+    }
+  };
 
-      <main className="main">
-        <header className="topbar">
-          <h1>{config.webName || 'QQ 机器人控制台'}</h1>
-          <span className={`pill ${platformStatus.connected ? 'ok' : 'off'}`}>
+  return (
+    <div className="flex min-h-screen bg-background">
+      <Sidebar className="bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+        <SidebarHeader className="border-slate-700">
+          <span className="text-2xl">🤖</span>
+          <span className="font-semibold text-lg">{config.webName || 'QQBot Console'}</span>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarNav>
+            {menuItems.map((item) => (
+              <SidebarNavItem
+                key={item.key}
+                active={activeMenu === item.key}
+                icon={getMenuIcon(item.key)}
+                onClick={() => setActiveMenu(item.key)}
+                className={activeMenu === item.key
+                  ? 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/30'
+                  : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                }
+              >
+                {item.label}
+              </SidebarNavItem>
+            ))}
+          </SidebarNav>
+        </SidebarContent>
+      </Sidebar>
+
+      <main className="flex-1 flex flex-col">
+        <header className="flex items-center justify-between px-6 py-4 border-b bg-card">
+          <h1 className="text-xl font-semibold">{config.webName || 'QQ 机器人控制台'}</h1>
+          <Badge variant={platformStatus.connected ? 'success' : 'secondary'}>
             平台状态：{platformStatus.connected ? '已连接' : platformStatus.connecting ? '连接中' : '未连接'}
-          </span>
+          </Badge>
         </header>
 
-        <p className="notice">{loading ? '处理中，请稍候...' : notice || config.notice}</p>
+        {(loading || notice || config.notice) && (
+          <div className="px-6 py-3 bg-muted/50 border-b">
+            <p className="text-sm text-muted-foreground">
+              {loading ? '处理中，请稍候...' : notice || config.notice}
+            </p>
+          </div>
+        )}
 
         {activeMenu === 'accounts' && (
           <AccountsPanel
@@ -464,10 +566,14 @@ function App() {
         {activeMenu === 'plugins' && (
           <PluginsPanel
             plugins={plugins}
-            newPlugin={newPlugin}
-            onNewPluginChange={setNewPlugin}
-            onCreatePlugin={createPlugin}
+            pluginConfig={pluginConfig}
             onTogglePlugin={togglePlugin}
+            onReloadPlugin={reloadPlugin}
+            onDeletePlugin={deletePlugin}
+            onUpdateConfig={updatePluginConfig}
+            onUploadPlugin={uploadPlugin}
+            onLoadPluginSource={loadPluginSource}
+            onSavePluginSource={savePluginSource}
           />
         )}
       </main>

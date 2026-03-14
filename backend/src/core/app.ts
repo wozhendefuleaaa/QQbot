@@ -30,24 +30,55 @@ import { registerStatisticsRoutes } from '../modules/statistics/routes.js';
 import { registerGroupRoutes } from '../modules/group/routes.js';
 import { registerExternalApiRoutes } from '../modules/external/routes.js';
 import { registerSseRoutes } from '../modules/sse/routes.js';
+import { createApiRateLimiter, errorHandler, notFoundHandler } from './middleware/index.js';
 
 dotenv.config({ path: '../.env' });
 
 const app = express();
+
+// 安全中间件：速率限制
+app.use(createApiRateLimiter());
+
+// CORS 配置 - 根据环境动态配置
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+  : (process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175']);
+
 app.use(
   cors({
-    origin: '*',
+    origin: process.env.NODE_ENV === 'production'
+      ? corsOrigins
+      : '*', // 开发环境允许所有来源
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['X-Response-Time', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+    credentials: true,
+    maxAge: 86400 // 预检请求缓存 24 小时
   })
 );
-app.use(express.json());
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(fileUpload({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 限制
   createParentPath: true
 }));
-app.use((req, _res, next) => {
-  console.log(`[api] ${req.method} ${req.path}`);
+
+// 请求日志中间件 - 记录响应时间
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  // 响应完成后记录日志（不设置 header，因为响应已完成）
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    
+    // 只记录非健康检查的请求
+    if (req.path !== '/health' && req.path !== '/ready') {
+      const logLevel = res.statusCode >= 400 ? 'WARN' : 'INFO';
+      console.log(`[${logLevel}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    }
+  });
+  
   next();
 });
 
@@ -108,6 +139,12 @@ registerQuickReplyRoutes(app);
 registerGroupRoutes(app);
 registerExternalApiRoutes(app);
 registerSseRoutes(app);
+
+// 404 处理
+app.use(notFoundHandler);
+
+// 全局错误处理
+app.use(errorHandler);
 
 async function bootstrap() {
   await loadAccountsFromDisk();

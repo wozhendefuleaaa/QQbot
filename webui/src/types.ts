@@ -90,7 +90,34 @@ export type PluginInfo = {
   enabled: boolean;
   version: string;
   description: string;
+  author?: string;
+  priority?: number;
+  commands?: Array<{
+    name: string;
+    description: string;
+    usage?: string;
+    permission?: string;
+  }>;
+  hasOnMessage?: boolean;
+  hasCronJobs?: boolean;
+  loaded?: boolean;
   updatedAt: string;
+};
+
+export type PluginConfig = {
+  commandPrefix: string;
+  allowGroup: boolean;
+  allowPrivate: boolean;
+  adminUserIds: string[];
+  ownerIds?: string[];
+};
+
+export type PluginCommand = {
+  plugin: string;
+  name: string;
+  description: string;
+  usage?: string;
+  permission?: string;
 };
 
 export type SystemLog = {

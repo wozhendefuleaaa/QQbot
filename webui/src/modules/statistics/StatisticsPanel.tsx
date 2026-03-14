@@ -1,4 +1,7 @@
 import { StatisticsSnapshot } from '../../types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 type Props = {
   snapshot: StatisticsSnapshot | null;
@@ -14,124 +17,164 @@ function formatUptime(seconds: number): string {
 
 export function StatisticsPanel({ snapshot, onRefresh }: Props) {
   return (
-    <section className="panel">
-      <h2>统计中心</h2>
-      <div className="platform-actions">
-        <button type="button" onClick={onRefresh}>
-          刷新统计
-        </button>
+    <div className="flex-1 p-6 space-y-6 overflow-auto">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">统计中心</h2>
+          <p className="text-muted-foreground">查看系统运行统计数据</p>
+        </div>
+        <Button variant="outline" onClick={onRefresh}>刷新统计</Button>
       </div>
+
       {!snapshot ? (
-        <p className="muted">暂无统计数据</p>
+        <Card>
+          <CardContent className="py-12">
+            <p className="text-muted-foreground text-center">暂无统计数据</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="statistics-content">
+        <div className="space-y-6">
           {/* 概览卡片 */}
-          <div className="stats-section">
-            <h3>概览</h3>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <span className="stat-label">日期</span>
-                <strong className="stat-value">{snapshot.date}</strong>
+          <Card>
+            <CardHeader>
+              <CardTitle>概览</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">日期</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.date}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">在线账号</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.activeAccounts} / {snapshot.totalAccounts}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">会话总数</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.conversations}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">平台状态</span>
+                  <div className="mt-1">
+                    <Badge variant={snapshot.platformConnected ? 'success' : 'destructive'}>
+                      {snapshot.platformConnected ? '已连接' : '未连接'}
+                    </Badge>
+                  </div>
+                </div>
               </div>
-              <div className="stat-card">
-                <span className="stat-label">在线账号</span>
-                <strong className="stat-value">{snapshot.activeAccounts} / {snapshot.totalAccounts}</strong>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">会话总数</span>
-                <strong className="stat-value">{snapshot.conversations}</strong>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">平台状态</span>
-                <strong className={`stat-value ${snapshot.platformConnected ? 'status-ok' : 'status-error'}`}>
-                  {snapshot.platformConnected ? '已连接' : '未连接'}
-                </strong>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* 消息统计 */}
-          <div className="stats-section">
-            <h3>消息统计</h3>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <span className="stat-label">入站消息</span>
-                <strong className="stat-value">{snapshot.inboundMessages}</strong>
+          <Card>
+            <CardHeader>
+              <CardTitle>消息统计</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">入站消息</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.inboundMessages}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">出站消息</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.outboundMessages}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">私聊会话</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.privateConversations}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">群聊会话</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.groupConversations}</p>
+                </div>
               </div>
-              <div className="stat-card">
-                <span className="stat-label">出站消息</span>
-                <strong className="stat-value">{snapshot.outboundMessages}</strong>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">私聊会话</span>
-                <strong className="stat-value">{snapshot.privateConversations}</strong>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">群聊会话</span>
-                <strong className="stat-value">{snapshot.groupConversations}</strong>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* 运行状态 */}
-          <div className="stats-section">
-            <h3>运行状态</h3>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <span className="stat-label">平台运行时间</span>
-                <strong className="stat-value">{snapshot.platformUptime > 0 ? formatUptime(snapshot.platformUptime) : '-'}</strong>
+          <Card>
+            <CardHeader>
+              <CardTitle>运行状态</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">平台运行时间</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.platformUptime > 0 ? formatUptime(snapshot.platformUptime) : '-'}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">快捷回复</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.quickReplies}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <span className="text-sm text-muted-foreground">插件数量</span>
+                  <p className="text-xl font-semibold mt-1">{snapshot.plugins}</p>
+                </div>
               </div>
-              <div className="stat-card">
-                <span className="stat-label">快捷回复</span>
-                <strong className="stat-value">{snapshot.quickReplies}</strong>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">插件数量</span>
-                <strong className="stat-value">{snapshot.plugins}</strong>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* 活跃排行 */}
-          <div className="stats-section">
-            <h3>活跃排行</h3>
-            <div className="stats-columns">
-              <div className="stats-column">
-                <h4>活跃群组 Top 5</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>活跃群组 Top 5</CardTitle>
+              </CardHeader>
+              <CardContent>
                 {snapshot.topGroups.length === 0 ? (
-                  <p className="muted">暂无数据</p>
+                  <p className="text-muted-foreground text-center py-4">暂无数据</p>
                 ) : (
-                  <ul className="rank-list">
+                  <div className="space-y-3">
                     {snapshot.topGroups.map((g, i) => (
-                      <li key={g.id}>
-                        <span className="rank">{i + 1}</span>
-                        <span className="name">{g.name}</span>
-                        <span className="count">{g.messageCount} 条</span>
-                      </li>
+                      <div key={g.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div className="flex items-center gap-3">
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium ${
+                            i === 0 ? 'bg-yellow-500 text-white' :
+                            i === 1 ? 'bg-gray-400 text-white' :
+                            i === 2 ? 'bg-amber-700 text-white' :
+                            'bg-muted text-muted-foreground'
+                          }`}>{i + 1}</span>
+                          <span className="font-medium">{g.name}</span>
+                        </div>
+                        <span className="text-muted-foreground">{g.messageCount} 条</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
-              </div>
-              <div className="stats-column">
-                <h4>活跃用户 Top 5</h4>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>活跃用户 Top 5</CardTitle>
+              </CardHeader>
+              <CardContent>
                 {snapshot.topUsers.length === 0 ? (
-                  <p className="muted">暂无数据</p>
+                  <p className="text-muted-foreground text-center py-4">暂无数据</p>
                 ) : (
-                  <ul className="rank-list">
+                  <div className="space-y-3">
                     {snapshot.topUsers.map((u, i) => (
-                      <li key={u.id}>
-                        <span className="rank">{i + 1}</span>
-                        <span className="name">{u.name}</span>
-                        <span className="count">{u.messageCount} 条</span>
-                      </li>
+                      <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div className="flex items-center gap-3">
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium ${
+                            i === 0 ? 'bg-yellow-500 text-white' :
+                            i === 1 ? 'bg-gray-400 text-white' :
+                            i === 2 ? 'bg-amber-700 text-white' :
+                            'bg-muted text-muted-foreground'
+                          }`}>{i + 1}</span>
+                          <span className="font-medium">{u.name}</span>
+                        </div>
+                        <span className="text-muted-foreground">{u.messageCount} 条</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }

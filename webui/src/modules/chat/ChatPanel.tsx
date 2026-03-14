@@ -1,9 +1,11 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { BotAccount, ChatMessage, Conversation, PlatformStatus, QuickReply } from '../../types';
+import { useSSE } from '../../hooks/useSSE';
 import { AccountNav } from './AccountNav';
 import { ConversationList } from './ConversationList';
 import { MessagePanel } from './MessagePanel';
+import { cn } from '../../lib/utils';
 
 type Props = {
   accounts: BotAccount[];
@@ -25,9 +27,6 @@ export function ChatPanel({ accounts, platformStatus }: Props) {
   });
   const [loading, setLoading] = useState(false);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
-  
-  // SSE 连接引用
-  const eventSourceRef = useRef<EventSource | null>(null);
 
   // 加载所有会话（多账号聚合）
   const loadAllConversations = useCallback(async () => {
@@ -116,94 +115,44 @@ export function ChatPanel({ accounts, platformStatus }: Props) {
     }
   }, [accounts, loadConversations]);
 
-  // SSE 实时消息连接 - 只在组件挂载时建立一次
-  useEffect(() => {
-    let isSubscribed = true;
-    let reconnectTimeout: ReturnType<typeof setTimeout>;
-    
-    const connectSSE = () => {
-      if (!isSubscribed) return;
+  // SSE 实时消息连接 - 使用改进的 useSSE hook
+  const { connected: sseConnected, error: sseError } = useSSE({
+    url: '/api/sse/events',
+    maxRetries: 10,
+    onMessage: (data) => {
+      console.log('[SSE] 收到消息:', data);
       
-      // 如果已有连接，先关闭
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-      
-      // 使用相对路径，通过 vite 代理转发到后端
-      const eventSource = new EventSource('/api/sse/events');
-      eventSourceRef.current = eventSource;
-
-      eventSource.onopen = () => {
-        console.log('[SSE] 已连接');
-      };
-
-      eventSource.addEventListener('message', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] 收到消息:', data);
-          
-          // 如果消息属于当前选中的会话，添加到消息列表
-          if (data.conversationId && data.message) {
-            const newMsg: ChatMessage = data.message;
-            const convId = data.conversationId;
-            
-            setMessages((prev) => {
-              // 检查是否是当前会话的消息
-              if (prev.length > 0 && prev[0].conversationId === convId) {
-                // 避免重复添加
-                if (prev.some(m => m.id === newMsg.id)) return prev;
-                return [...prev, newMsg];
-              }
-              // 如果消息列表为空，也添加
-              if (prev.length === 0) {
-                return [newMsg];
-              }
-              return prev;
-            });
-          }
-          
-          // 刷新会话列表以更新最后消息
-          loadConversations();
-        } catch (err) {
-          console.error('[SSE] 解析消息失败:', err);
-        }
-      });
-
-      eventSource.addEventListener('platform_status', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] 平台状态变化:', data);
-        } catch (err) {
-          console.error('[SSE] 解析平台状态失败:', err);
-        }
-      });
-
-      eventSource.onerror = () => {
-        console.error('[SSE] 连接错误，5秒后重连');
-        eventSource.close();
-        eventSourceRef.current = null;
+      // 如果消息属于当前选中的会话，添加到消息列表
+      if (data && typeof data === 'object' && 'conversationId' in data && 'message' in data) {
+        const typedData = data as { conversationId: string; message: ChatMessage };
+        const newMsg = typedData.message;
+        const convId = typedData.conversationId;
         
-        if (isSubscribed) {
-          reconnectTimeout = setTimeout(() => {
-            connectSSE();
-          }, 5000);
-        }
-      };
-    };
-
-    connectSSE();
-
-    return () => {
-      isSubscribed = false;
-      clearTimeout(reconnectTimeout);
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+        setMessages((prev) => {
+          // 检查是否是当前会话的消息
+          if (prev.length > 0 && prev[0].conversationId === convId) {
+            // 避免重复添加
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          }
+          // 如果消息列表为空，也添加
+          if (prev.length === 0) {
+            return [newMsg];
+          }
+          return prev;
+        });
       }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 只在组件挂载时执行一次
+      
+      // 刷新会话列表以更新最后消息
+      loadConversations();
+    },
+    onPlatformStatus: (data) => {
+      console.log('[SSE] 平台状态变化:', data);
+    },
+    onConnectionChange: (connected) => {
+      console.log('[SSE] 连接状态:', connected ? '已连接' : '已断开');
+    }
+  });
 
   // 选择会话时加载消息
   useEffect(() => {
@@ -414,7 +363,10 @@ export function ChatPanel({ accounts, platformStatus }: Props) {
   };
 
   return (
-    <section className="panel panel-chat-v2">
+    <section className={cn(
+      "flex flex-1 overflow-hidden",
+      "panel-chat-v2" // Keep for any legacy styles
+    )}>
       {/* 左侧：账号导航 */}
       <AccountNav
         accounts={accounts}
