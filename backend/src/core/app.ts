@@ -30,7 +30,9 @@ import { registerStatisticsRoutes } from '../modules/statistics/routes.js';
 import { registerGroupRoutes } from '../modules/group/routes.js';
 import { registerExternalApiRoutes } from '../modules/external/routes.js';
 import { registerSseRoutes } from '../modules/sse/routes.js';
-import { createApiRateLimiter, errorHandler, notFoundHandler } from './middleware/index.js';
+import { registerAuthRoutes } from '../modules/auth/routes.js';
+import { initializeDefaultAdmin } from './auth.js';
+import { createApiRateLimiter, errorHandler, notFoundHandler, authMiddleware } from './middleware/index.js';
 
 dotenv.config({ path: '../.env' });
 
@@ -127,6 +129,12 @@ app.get('/ready', async (_req, res) => {
   }
 });
 
+// 认证路由（无需认证）
+registerAuthRoutes(app);
+
+// 以下路由需要认证保护
+app.use('/api', authMiddleware);
+
 registerAccountRoutes(app);
 registerPlatformRoutes(app);
 registerChatRoutes(app);
@@ -153,6 +161,9 @@ async function bootstrap() {
   await loadOpenApiTokensFromDisk();
   await loadChatDataFromDisk();
   await loadQuickRepliesFromDisk();
+
+  // 初始化默认管理员账户
+  await initializeDefaultAdmin();
 
   // 加载插件
   try {

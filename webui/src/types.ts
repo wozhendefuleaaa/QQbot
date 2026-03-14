@@ -152,3 +152,29 @@ export type OpenApiTokenView = {
   enabled: boolean;
   createdAt: string;
 };
+
+// 认证相关类型
+export type User = {
+  id: string;
+  username: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+  lastLoginAt: string | null;
+};
+
+export type LoginRequest = {
+  username: string;
+  password: string;
+};
+
+export type LoginResponse = {
+  success: boolean;
+  message: string;
+  token: string;
+  user: User;
+};
+
+export type AuthStatus = {
+  authenticated: boolean;
+  user: User | null;
+};

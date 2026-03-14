@@ -131,3 +131,41 @@ export type StatisticsSnapshot = {
   topGroups: Array<{ id: string; name: string; messageCount: number }>;
   topUsers: Array<{ id: string; name: string; messageCount: number }>;
 };
+
+// 认证相关类型
+export type User = {
+  id: string;
+  username: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+  lastLoginAt: string | null;
+};
+
+export type UserWithPassword = User & {
+  passwordHash: string;
+};
+
+export type JwtPayload = {
+  userId: string;
+  username: string;
+  role: 'admin' | 'user';
+  iat: number;
+  exp: number;
+};
+
+export type LoginRequest = {
+  username: string;
+  password: string;
+};
+
+export type LoginResponse = {
+  success: true;
+  user: User;
+  token: string;
+  expiresIn: number;
+};
+
+export type AuthStatus = {
+  authenticated: boolean;
+  user?: User;
+};

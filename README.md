@@ -9,6 +9,7 @@
 - 💬 **消息收发** - 支持私聊、群聊消息的收发与历史记录
 - 🔌 **插件系统** - 支持热加载、命令系统、权限控制
 - 🔗 **第三方集成** - 提供 RESTful API 供外部系统调用
+- 🔐 **JWT 认证** - 安全的用户认证与权限管理
 
 ### 稳定性优化
 - ✅ 消息回复过期检查（120秒有效期）
@@ -265,6 +266,30 @@ cd webui && npm run build
 # 通过 API 重载插件
 curl -X POST http://localhost:3000/api/plugins/my-plugin/reload
 ```
+
+## 更新日志
+
+### v1.1.0 (2026-03-14)
+
+#### 新增功能
+- 🔐 **JWT 认证系统** - 完整的用户认证机制
+  - 登录/登出功能
+  - JWT Token 验证
+  - 角色权限控制（admin/user）
+  - 默认管理员账户：admin / admin123
+  - Token 有效期可配置（默认 24 小时）
+
+#### 后端更改
+- 新增 [`backend/src/core/auth.ts`](backend/src/core/auth.ts) - 认证核心工具
+- 新增 [`backend/src/core/middleware/auth.ts`](backend/src/core/middleware/auth.ts) - 认证中间件
+- 新增 [`backend/src/modules/auth/routes.ts`](backend/src/modules/auth/routes.ts) - 认证路由
+- 所有 `/api` 路由现在需要认证
+
+#### 前端更改
+- 新增 [`webui/src/contexts/AuthContext.tsx`](webui/src/contexts/AuthContext.tsx) - 认证状态管理
+- 新增 [`webui/src/modules/auth/LoginPage.tsx`](webui/src/modules/auth/LoginPage.tsx) - 登录页面
+- 更新 [`webui/src/services/api.ts`](webui/src/services/api.ts) - 添加认证头
+- 未认证时自动跳转登录页
 
 ## 许可证
 

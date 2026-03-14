@@ -7,6 +7,8 @@ import { LogsPanel } from './modules/logs/LogsPanel';
 import { StatisticsPanel } from './modules/statistics/StatisticsPanel';
 import { OpenApiPanel } from './modules/openapi/OpenApiPanel';
 import { PluginsPanel } from './modules/plugins/PluginsPanel';
+import { LoginPage } from './modules/auth/LoginPage';
+import { useAuth } from './contexts/AuthContext';
 import { api } from './services/api';
 import {
   AppConfig,
@@ -32,6 +34,7 @@ import {
 } from './components/ui/sidebar';
 
 function App() {
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
   const [activeMenu, setActiveMenu] = useState<MenuKey>('accounts');
 
   const [accounts, setAccounts] = useState<BotAccount[]>([]);
@@ -458,6 +461,37 @@ function App() {
     }
   };
 
+  // 显示登录页面（如果未认证）
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="flex items-center gap-3 text-white">
+          <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="none"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          <span>正在加载...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar className="bg-gradient-to-b from-slate-900 to-slate-800 text-white">
@@ -488,9 +522,27 @@ function App() {
       <main className="flex-1 flex flex-col">
         <header className="flex items-center justify-between px-6 py-4 border-b bg-card">
           <h1 className="text-xl font-semibold">{config.webName || 'QQ 机器人控制台'}</h1>
-          <Badge variant={platformStatus.connected ? 'success' : 'secondary'}>
-            平台状态：{platformStatus.connected ? '已连接' : platformStatus.connecting ? '连接中' : '未连接'}
-          </Badge>
+          <div className="flex items-center gap-4">
+            <Badge variant={platformStatus.connected ? 'success' : 'secondary'}>
+              平台状态：{platformStatus.connected ? '已连接' : platformStatus.connecting ? '连接中' : '未连接'}
+            </Badge>
+            {user && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  {user.username}
+                  <span className="ml-1 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                    {user.role === 'admin' ? '管理员' : '用户'}
+                  </span>
+                </span>
+                <button
+                  onClick={logout}
+                  className="text-sm text-red-600 hover:text-red-700 hover:underline"
+                >
+                  退出登录
+                </button>
+              </div>
+            )}
+          </div>
         </header>
 
         {(loading || notice || config.notice) && (

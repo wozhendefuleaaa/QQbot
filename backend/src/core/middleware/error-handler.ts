@@ -55,7 +55,7 @@ export class ConflictError extends AppError {
  * 异步路由处理器包装函数
  * 自动捕获异步错误并传递给错误处理中间件
  */
-export function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
+export function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
