@@ -156,6 +156,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     setLoading(true);
     Promise.all([
       loadAccounts(),
@@ -170,19 +171,20 @@ function App() {
     ])
       .catch((e: Error) => setNotice(e.message))
       .finally(() => setLoading(false));
-  }, [loadAccounts, loadPlatformStatus, loadPlatformLogs, loadConfig, loadLogs, loadStatistics, loadPlugins, loadPluginConfig, loadOpenApi]);
+  }, [isAuthenticated, loadAccounts, loadPlatformStatus, loadPlatformLogs, loadConfig, loadLogs, loadStatistics, loadPlugins, loadPluginConfig, loadOpenApi]);
 
   useEffect(() => {
-    if (!selectedAccountId) return;
+    if (!isAuthenticated || !selectedAccountId) return;
     loadConversations(selectedAccountId).catch((e: Error) => setNotice(e.message));
-  }, [selectedAccountId, loadConversations]);
+  }, [isAuthenticated, selectedAccountId, loadConversations]);
 
   useEffect(() => {
-    if (!selectedConversationId) return;
+    if (!isAuthenticated || !selectedConversationId) return;
     loadMessages(selectedConversationId).catch((e: Error) => setNotice(e.message));
-  }, [selectedConversationId, loadMessages]);
+  }, [isAuthenticated, selectedConversationId, loadMessages]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     const timer = setInterval(() => {
       loadPlatformStatus().catch(() => undefined);
       if (activeMenu === 'platform') {
@@ -206,7 +208,7 @@ function App() {
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [activeMenu, logType, selectedAccountId, selectedConversationId, loadPlatformStatus, loadPlatformLogs, loadLogs, loadStatistics, loadConversations, loadMessages]);
+  }, [isAuthenticated, activeMenu, logType, selectedAccountId, selectedConversationId, loadPlatformStatus, loadPlatformLogs, loadLogs, loadStatistics, loadConversations, loadMessages]);
 
   const createAccount = async (e: FormEvent) => {
     e.preventDefault();

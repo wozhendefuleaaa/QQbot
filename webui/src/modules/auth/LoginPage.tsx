@@ -153,12 +153,6 @@ export function LoginPage() {
             </button>
           </form>
 
-          {/* Default credentials hint */}
-          <div className="mt-6 p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-gray-500 text-center">
-              默认管理员账户：<span className="font-mono">admin</span> / <span className="font-mono">admin123</span>
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
