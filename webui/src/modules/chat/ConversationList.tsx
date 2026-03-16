@@ -17,6 +17,8 @@ type Props = {
   onConversationUpdate?: () => void;
 };
 
+type ViewMode = 'all' | 'users' | 'groups';
+
 export function ConversationList({
   conversations,
   accounts,
@@ -30,6 +32,7 @@ export function ConversationList({
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
   const [newTagInput, setNewTagInput] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('all');
 
   // 获取所有已使用的标签
   const allTags = useMemo(() => {
@@ -46,9 +49,16 @@ export function ConversationList({
     return conversations.filter((c) => c.accountId === filterAccountId);
   }, [conversations, filterAccountId]);
 
-  // 根据关键词、置顶和标签筛选
+  // 根据视图模式、关键词、置顶和标签筛选
   const filteredConversations = useMemo(() => {
     let items = filteredByAccount;
+
+    // 视图模式筛选
+    if (viewMode === 'users') {
+      items = items.filter((c) => c.peerType === 'user');
+    } else if (viewMode === 'groups') {
+      items = items.filter((c) => c.peerType === 'group');
+    }
 
     // 置顶筛选
     if (showPinnedOnly) {
@@ -75,7 +85,15 @@ export function ConversationList({
       if (!a.isPinned && b.isPinned) return 1;
       return b.updatedAt.localeCompare(a.updatedAt);
     });
-  }, [filteredByAccount, keyword, showPinnedOnly, tagFilter]);
+  }, [filteredByAccount, viewMode, keyword, showPinnedOnly, tagFilter]);
+
+  // 统计数据
+  const stats = useMemo(() => {
+    const users = filteredByAccount.filter((c) => c.peerType === 'user').length;
+    const groups = filteredByAccount.filter((c) => c.peerType === 'group').length;
+    const pinned = filteredByAccount.filter((c) => c.isPinned).length;
+    return { users, groups, pinned, total: filteredByAccount.length };
+  }, [filteredByAccount]);
 
   // 获取账号名称
   const getAccountName = (accountId: string) => {
@@ -114,26 +132,61 @@ export function ConversationList({
   };
 
   return (
-    <div className="w-72 border-r bg-card flex flex-col">
+    <div className="w-80 border-r bg-card flex flex-col">
       {/* 搜索和筛选栏 */}
       <div className="p-4 border-b space-y-3">
-        <h2 className="font-semibold">会话列表</h2>
-        <div className="flex gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-lg">💬 消息</h2>
+          <Button
+            variant={showPinnedOnly ? 'default' : 'outline'}
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setShowPinnedOnly(!showPinnedOnly)}
+            title={showPinnedOnly ? '显示全部' : '仅显示置顶'}
+          >
+            📌 {stats.pinned}
+          </Button>
+        </div>
+
+        {/* 搜索框 */}
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+            🔍
+          </span>
           <Input
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="搜索会话..."
-            className="flex-1 h-8 text-sm"
+            placeholder="搜索会话、联系人..."
+            className="pl-9 h-9 text-sm"
           />
+        </div>
+
+        {/* 视图模式切换 */}
+        <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
           <Button
-            variant={showPinnedOnly ? 'secondary' : 'ghost'}
+            variant={viewMode === 'all' ? 'default' : 'ghost'}
             size="sm"
-            className="px-2"
-            onClick={() => setShowPinnedOnly(!showPinnedOnly)}
-            title={showPinnedOnly ? '显示全部' : '仅显示置顶'}
+            className="flex-1 h-7 text-xs"
+            onClick={() => setViewMode('all')}
           >
-            📌
+            全部 ({stats.total})
+          </Button>
+          <Button
+            variant={viewMode === 'users' ? 'default' : 'ghost'}
+            size="sm"
+            className="flex-1 h-7 text-xs"
+            onClick={() => setViewMode('users')}
+          >
+            👤 私聊 ({stats.users})
+          </Button>
+          <Button
+            variant={viewMode === 'groups' ? 'default' : 'ghost'}
+            size="sm"
+            className="flex-1 h-7 text-xs"
+            onClick={() => setViewMode('groups')}
+          >
+            👥 群聊 ({stats.groups})
           </Button>
         </div>
 
@@ -163,44 +216,50 @@ export function ConversationList({
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground">
-          {filterAccountId ? (
-            <span>当前账号：{getAccountName(filterAccountId)}</span>
-          ) : (
-            <span>全部会话：{filteredConversations.length}</span>
-          )}
-        </div>
+        {filterAccountId && (
+          <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+            📱 当前账号：{getAccountName(filterAccountId)}
+          </div>
+        )}
       </div>
 
       {/* 会话列表 */}
       <div className="flex-1 overflow-auto">
         {filteredConversations.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground text-sm">
-            暂无会话
+          <div className="p-8 text-center">
+            <div className="text-4xl mb-3">📭</div>
+            <p className="text-muted-foreground text-sm">暂无会话</p>
+            <p className="text-muted-foreground text-xs mt-1">
+              {keyword ? '试试其他搜索词' : '开始聊天吧'}
+            </p>
           </div>
         ) : (
-          <div className="space-y-1 p-2">
+          <div className="space-y-0.5 p-2">
             {filteredConversations.map((conv) => (
               <div
                 key={conv.id}
                 className={cn(
-                  "relative rounded-lg transition-colors",
-                  selectedConversationId === conv.id && "bg-secondary"
+                  "relative rounded-xl transition-all duration-200 group",
+                  selectedConversationId === conv.id 
+                    ? "bg-primary/10 ring-2 ring-primary/30" 
+                    : "hover:bg-muted/50"
                 )}
               >
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full justify-start gap-3 h-auto py-2 px-3 text-left",
-                    conv.isPinned && "border-l-2 border-l-primary"
+                    "w-full justify-start gap-3 h-auto py-3 px-3 text-left",
+                    conv.isPinned && "border-l-4 border-l-primary/60"
                   )}
                   onClick={() => onSelectConversation(conv)}
                 >
                   {/* 头像 */}
                   <div className="relative flex-shrink-0">
                     <div className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center font-medium text-sm",
-                      conv.peerType === 'group' ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                      "w-12 h-12 rounded-full flex items-center justify-center font-medium text-base shadow-sm",
+                      conv.peerType === 'group' 
+                        ? "bg-gradient-to-br from-blue-400 to-blue-600 text-white" 
+                        : "bg-gradient-to-br from-green-400 to-green-600 text-white"
                     )}>
                       {conv.avatar ? (
                         <img src={conv.avatar} alt={conv.peerName} className="w-full h-full rounded-full object-cover" />
@@ -208,39 +267,52 @@ export function ConversationList({
                         <span>{conv.peerName.charAt(0).toUpperCase()}</span>
                       )}
                     </div>
+                    {/* 未读消息角标 */}
                     {conv.unreadCount && conv.unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 font-medium shadow-sm">
                         {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
                       </span>
+                    )}
+                    {/* 在线状态（私聊） */}
+                    {conv.peerType === 'user' && (
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-card rounded-full" />
                     )}
                   </div>
 
                   {/* 会话信息 */}
                   <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm truncate flex-1">
+                        {conv.remark || conv.peerName}
+                      </span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">
+                        {fmtTime(conv.updatedAt)}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className={cn(
-                        "text-xs px-1",
-                        conv.peerType === 'group' ? "border-blue-300 text-blue-600" : "border-green-300 text-green-600"
+                        "text-xs px-1.5 py-0 h-4",
+                        conv.peerType === 'group' 
+                          ? "border-blue-300 text-blue-600 dark:border-blue-600 dark:text-blue-400" 
+                          : "border-green-300 text-green-600 dark:border-green-600 dark:text-green-400"
                       )}>
-                        {conv.peerType === 'group' ? '群' : '私'}
+                        {conv.peerType === 'group' ? '👥 群' : '👤 私'}
                       </Badge>
-                      <span className="font-medium text-sm truncate flex-1">{conv.remark || conv.peerName}</span>
-                      <span className="text-xs text-muted-foreground flex-shrink-0">{fmtTime(conv.updatedAt)}</span>
+                      <p className="text-xs text-muted-foreground truncate flex-1">
+                        {conv.lastMessage || '暂无消息'}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {conv.lastMessage || '暂无消息'}
-                    </p>
 
                     {/* 标签显示 */}
                     {(conv.tags || []).length > 0 && (
-                      <div className="flex gap-1 mt-1 flex-wrap">
+                      <div className="flex gap-1 mt-1.5 flex-wrap">
                         {(conv.tags || []).slice(0, 3).map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs px-1 py-0 h-4">
+                          <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0 h-4">
                             {tag}
                           </Badge>
                         ))}
                         {(conv.tags || []).length > 3 && (
-                          <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4">
                             +{(conv.tags || []).length - 3}
                           </Badge>
                         )}
@@ -249,15 +321,15 @@ export function ConversationList({
 
                     {/* 多账号模式下显示来源账号 */}
                     {!filterAccountId && (
-                      <span className="text-xs text-muted-foreground mt-0.5 block">
-                        {getAccountName(conv.accountId)}
+                      <span className="text-xs text-muted-foreground mt-1 block opacity-70">
+                        📱 {getAccountName(conv.accountId)}
                       </span>
                     )}
                   </div>
 
                   {/* 置顶标记 */}
                   {conv.isPinned && (
-                    <span className="absolute top-1 right-1 text-xs">📌</span>
+                    <span className="absolute top-2 right-2 text-xs opacity-60">📌</span>
                   )}
                 </Button>
 
@@ -265,7 +337,7 @@ export function ConversationList({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="absolute bottom-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                  className="absolute bottom-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
                   onClick={(e) => {
                     e.stopPropagation();
                     setEditingTagsFor(editingTagsFor === conv.id ? null : conv.id);
@@ -279,7 +351,7 @@ export function ConversationList({
                 {editingTagsFor === conv.id && (
                   <Card className="absolute z-10 top-full left-0 right-0 mt-1 p-3 shadow-lg" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">管理标签</span>
+                      <span className="text-sm font-medium">🏷️ 管理标签</span>
                       <Button
                         variant="ghost"
                         size="sm"

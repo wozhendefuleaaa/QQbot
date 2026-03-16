@@ -1,5 +1,6 @@
 export type AccountStatus = 'DISABLED' | 'CONNECTING' | 'ONLINE' | 'OFFLINE';
 export type MenuKey =
+  | 'home'
   | 'accounts'
   | 'chat'
   | 'platform'

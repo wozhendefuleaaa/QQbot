@@ -39,7 +39,7 @@ function MessageStatusIndicator({ status }: { status?: MessageStatus }) {
   if (status === 'pending') {
     return (
       <span className="text-yellow-500 text-xs animate-pulse" title="发送中">
-        ✓
+        ◐
       </span>
     );
   }
@@ -78,8 +78,17 @@ export function MessagePanel({
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showGroupManage, setShowGroupManage] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 常用表情列表
+  const commonEmojis = [
+    '😀', '😂', '🤣', '😊', '😍', '🥰', '😘', '😎',
+    '🤔', '😅', '👍', '👎', '❤️', '💔', '🎉', '🎂',
+    '🌟', '✨', '🔥', '💪', '🙏', '👏', '😢', '😭',
+    '😤', '😠', '🤝', '💯', '✅', '❌', '⚡', '🌈'
+  ];
 
   // 处理右键菜单
   const handleContextMenu = (e: React.MouseEvent, msgId: string) => {
@@ -151,6 +160,18 @@ export function MessagePanel({
       onLoadQuickReplies();
     }
     setShowQuickReplies(!showQuickReplies);
+    setShowEmojiPicker(false);
+  };
+
+  // 切换表情面板
+  const handleToggleEmojiPicker = () => {
+    setShowEmojiPicker(!showEmojiPicker);
+    setShowQuickReplies(false);
+  };
+
+  // 插入表情
+  const handleInsertEmoji = (emoji: string) => {
+    onSendFormChange({ ...sendForm, text: sendForm.text + emoji });
   };
 
   // 选择图片文件
@@ -193,16 +214,35 @@ export function MessagePanel({
   return (
     <div className="flex flex-col flex-1 bg-card overflow-hidden">
       {/* 头部 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">
-            {conversation ? (conversation.remark || conversation.peerName) : '选择会话'}
-          </h2>
+      <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-card to-muted/20">
+        <div className="flex items-center gap-3">
           {conversation && (
-            <Badge variant={conversation.peerType === 'group' ? 'default' : 'secondary'}>
-              {conversation.peerType === 'group' ? '群聊' : '私聊'}
-            </Badge>
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center font-medium text-white shadow-sm",
+              conversation.peerType === 'group'
+                ? "bg-gradient-to-br from-blue-400 to-blue-600"
+                : "bg-gradient-to-br from-green-400 to-green-600"
+            )}>
+              {conversation.peerName.charAt(0).toUpperCase()}
+            </div>
           )}
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">
+                {conversation ? (conversation.remark || conversation.peerName) : '选择会话'}
+              </h2>
+              {conversation && (
+                <Badge variant={conversation.peerType === 'group' ? 'default' : 'secondary'} className="text-xs">
+                  {conversation.peerType === 'group' ? '👥 群聊' : '👤 私聊'}
+                </Badge>
+              )}
+            </div>
+            {conversation && (
+              <span className="text-xs text-muted-foreground">
+                ID: {conversation.peerId}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {conversation && conversation.peerType === 'group' && accountId && (
@@ -210,26 +250,42 @@ export function MessagePanel({
               variant="outline"
               size="sm"
               onClick={() => setShowGroupManage(true)}
+              className="gap-1"
             >
               ⚙️ 群管理
             </Button>
           )}
           {conversation && (
-            <span className="text-sm text-muted-foreground">
-              ID: {conversation.peerId}
-            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-muted-foreground"
+            >
+              ℹ️ 详情
+            </Button>
           )}
         </div>
       </div>
 
       {/* 消息区域 */}
-      <div className="flex-1 overflow-auto p-4" onClick={closeContextMenu}>
+      <div 
+        className="flex-1 overflow-auto p-4 space-y-3"
+        onClick={closeContextMenu}
+        style={{ 
+          backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--muted-foreground) / 0.1) 1px, transparent 0)',
+          backgroundSize: '24px 24px'
+        }}
+      >
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-muted-foreground">暂无消息</p>
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="text-6xl mb-4">💬</div>
+            <p className="text-muted-foreground text-lg">开始聊天吧</p>
+            <p className="text-muted-foreground text-sm mt-1">
+              发送消息开始与对方的对话
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <>
             {/* 加载更多按钮 */}
             {hasMoreMessages && (
               <div className="flex justify-center mb-4">
@@ -238,8 +294,9 @@ export function MessagePanel({
                   size="sm"
                   onClick={onLoadMore}
                   disabled={loadingMore}
+                  className="bg-card/80 backdrop-blur-sm"
                 >
-                  {loadingMore ? '加载中...' : '↑ 加载更多消息'}
+                  {loadingMore ? '⏳ 加载中...' : '↑ 加载更多历史消息'}
                 </Button>
               </div>
             )}
@@ -247,70 +304,96 @@ export function MessagePanel({
               <div
                 key={msg.id}
                 className={cn(
-                  "max-w-[80%] p-3 rounded-lg cursor-context-menu",
-                  msg.direction === 'out'
-                    ? "ml-auto bg-primary text-primary-foreground"
-                    : "mr-auto bg-muted"
+                  "max-w-[75%] group",
+                  msg.direction === 'out' ? "ml-auto" : "mr-auto"
                 )}
-                onContextMenu={(e) => handleContextMenu(e, msg.id)}
               >
-                {/* 引用消息 */}
-                {msg.replyTo && (
-                  <div className="flex items-center gap-1 mb-1 text-xs opacity-70 border-l-2 pl-2">
-                    <span>↩</span>
-                    <span className="truncate">
-                      {messages.find((m) => m.id === msg.replyTo)?.text.slice(0, 50) || '原消息'}
-                      ...
-                    </span>
+                <div
+                  className={cn(
+                    "relative p-3 rounded-2xl cursor-context-menu shadow-sm transition-all",
+                    msg.direction === 'out'
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-muted rounded-bl-sm",
+                    "hover:shadow-md"
+                  )}
+                  onContextMenu={(e) => handleContextMenu(e, msg.id)}
+                >
+                  {/* 引用消息 */}
+                  {msg.replyTo && (
+                    <div className={cn(
+                      "flex items-center gap-1 mb-1.5 text-xs opacity-80 border-l-2 pl-2 rounded-sm",
+                      msg.direction === 'out' ? "border-primary-foreground/50" : "border-primary/50"
+                    )}>
+                      <span>↩</span>
+                      <span className="truncate max-w-[200px]">
+                        {messages.find((m) => m.id === msg.replyTo)?.text.slice(0, 50) || '原消息'}
+                        ...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 消息内容 */}
+                  <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
+
+                  {/* 消息元信息 */}
+                  <div className={cn(
+                    "flex items-center justify-end gap-2 mt-1.5",
+                    msg.direction === 'out' ? "text-primary-foreground/70" : "text-muted-foreground"
+                  )}>
+                    <span className="text-xs">{fmtTime(msg.createdAt)}</span>
+                    {msg.direction === 'out' && <MessageStatusIndicator status={msg.status} />}
                   </div>
-                )}
 
-                {/* 消息内容 */}
-                <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
-
-                {/* 消息元信息 */}
-                <div className="flex items-center justify-end gap-2 mt-1">
-                  <span className="text-xs opacity-70">{fmtTime(msg.createdAt)}</span>
-                  {msg.direction === 'out' && <MessageStatusIndicator status={msg.status} />}
+                  {/* @提及 */}
+                  {msg.mentionedUsers && msg.mentionedUsers.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {msg.mentionedUsers.map((user) => (
+                        <Badge 
+                          key={user} 
+                          variant={msg.direction === 'out' ? 'secondary' : 'outline'} 
+                          className="text-xs"
+                        >
+                          @{user}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* @提及 */}
-                {msg.mentionedUsers && msg.mentionedUsers.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {msg.mentionedUsers.map((user) => (
-                      <Badge key={user} variant="outline" className="text-xs">
-                        @{user}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+                {/* 消息操作提示 */}
+                <div className={cn(
+                  "text-xs text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                  msg.direction === 'out' ? "text-right" : "text-left"
+                )}>
+                  右键查看更多操作
+                </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
-          </div>
+          </>
         )}
 
         {/* 右键菜单 */}
         {showContextMenu && (
           <Card
-            className="fixed z-50 p-1 shadow-lg min-w-[100px]"
+            className="fixed z-50 p-1.5 shadow-xl min-w-[120px] border bg-card/95 backdrop-blur-sm"
             style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
             onClick={(e) => e.stopPropagation()}
           >
-            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleCopy}>
-              复制
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={handleCopy}>
+              📋 复制
             </Button>
-            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleReply}>
-              回复
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={handleReply}>
+              ↩️ 回复
             </Button>
             {messages.find((m) => m.id === selectedMsgId)?.status === 'failed' && onRetry && (
-              <Button variant="ghost" size="sm" className="w-full justify-start text-yellow-600" onClick={handleRetry}>
-                重试
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-yellow-600" onClick={handleRetry}>
+                🔄 重试
               </Button>
             )}
             {messages.find((m) => m.id === selectedMsgId)?.direction === 'out' && onRecall && (
-              <Button variant="ghost" size="sm" className="w-full justify-start text-red-600" onClick={handleRecall}>
-                撤回
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-red-600" onClick={handleRecall}>
+                ↩️ 撤回
               </Button>
             )}
           </Card>
@@ -319,50 +402,32 @@ export function MessagePanel({
 
       {/* 输入区域 */}
       <form onSubmit={onSendMessage} className="border-t p-4 space-y-3 bg-card">
-        {/* 目标选择 */}
-        <div className="flex gap-2">
-          <div className="flex rounded-lg border overflow-hidden">
-            <Button
-              type="button"
-              variant={sendForm.targetType === 'user' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-none"
-              onClick={() => onSendFormChange({ ...sendForm, targetType: 'user' })}
-            >
-              私聊
-            </Button>
-            <Button
-              type="button"
-              variant={sendForm.targetType === 'group' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-none"
-              onClick={() => onSendFormChange({ ...sendForm, targetType: 'group' })}
-            >
-              群聊
-            </Button>
+        {/* 目标选择 - 简化版 */}
+        {conversation && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
+            <span>📤 发送至：</span>
+            <Badge variant="outline" className="text-xs">
+              {sendForm.targetType === 'group' ? '👥 群聊' : '👤 私聊'}
+            </Badge>
+            <span className="font-mono">{sendForm.targetId}</span>
           </div>
-          <Input
-            type="text"
-            value={sendForm.targetId}
-            onChange={(e) => onSendFormChange({ ...sendForm, targetId: e.target.value })}
-            placeholder={sendForm.targetType === 'group' ? '群 ID' : '用户 ID'}
-            required
-            className="flex-1"
-          />
-        </div>
+        )}
 
         {/* 快捷回复面板 */}
         {showQuickReplies && (
-          <Card className="p-3">
+          <Card className="p-3 shadow-lg border bg-card/95 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">快捷回复</span>
+              <span className="text-sm font-medium">📝 快捷回复</span>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowQuickReplies(false)}>
                 ×
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
               {quickReplies.length === 0 ? (
-                <p className="text-sm text-muted-foreground">暂无快捷回复</p>
+                <div className="text-center py-4 w-full">
+                  <p className="text-sm text-muted-foreground">暂无快捷回复</p>
+                  <p className="text-xs text-muted-foreground mt-1">可在设置中添加常用回复</p>
+                </div>
               ) : (
                 quickReplies.map((qr) => (
                   <Button
@@ -371,8 +436,9 @@ export function MessagePanel({
                     size="sm"
                     onClick={() => handleUseQuickReply(qr.text)}
                     title={qr.text}
+                    className="h-auto py-1.5"
                   >
-                    {qr.text.length > 30 ? `${qr.text.slice(0, 30)}...` : qr.text}
+                    {qr.text.length > 20 ? `${qr.text.slice(0, 20)}...` : qr.text}
                   </Button>
                 ))
               )}
@@ -380,27 +446,67 @@ export function MessagePanel({
           </Card>
         )}
 
-        {/* 消息输入 */}
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={showQuickReplies ? 'default' : 'outline'}
-            size="icon"
-            onClick={handleToggleQuickReplies}
-            title="快捷回复"
-          >
-            📝
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={handleSelectImage}
-            disabled={isUploading || !conversation}
-            title="发送图片"
-          >
-            {isUploading ? '⏳' : '🖼️'}
-          </Button>
+        {/* 表情选择面板 */}
+        {/* 表情选择面板 */}
+        {showEmojiPicker && (
+          <Card className="p-3 shadow-lg border bg-card/95 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">😀 选择表情</span>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowEmojiPicker(false)}>
+                ×
+              </Button>
+            </div>
+            <div className="grid grid-cols-8 gap-1">
+              {commonEmojis.map((emoji) => (
+                <Button
+                  key={emoji}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-lg hover:bg-muted"
+                  onClick={() => handleInsertEmoji(emoji)}
+                >
+                  {emoji}
+                </Button>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* 工具栏和消息输入 */}
+        <div className="flex gap-2 items-end">
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              variant={showEmojiPicker ? 'default' : 'ghost'}
+              size="icon"
+              onClick={handleToggleEmojiPicker}
+              title="选择表情"
+              className="h-9 w-9"
+            >
+              😀
+            </Button>
+            <Button
+              type="button"
+              variant={showQuickReplies ? 'default' : 'ghost'}
+              size="icon"
+              onClick={handleToggleQuickReplies}
+              title="快捷回复"
+              className="h-9 w-9"
+            >
+              📝
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleSelectImage}
+              disabled={isUploading || !conversation}
+              title="发送图片"
+              className="h-9 w-9"
+            >
+              {isUploading ? '⏳' : '🖼️'}
+            </Button>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -408,16 +514,39 @@ export function MessagePanel({
             className="hidden"
             onChange={handleImageChange}
           />
-          <textarea
-            value={sendForm.text}
-            onChange={(e) => onSendFormChange({ ...sendForm, text: e.target.value })}
-            onKeyDown={handleKeyDown}
-            placeholder="输入消息，Enter 发送，Shift+Enter 换行"
-            rows={3}
-            required
-            className="flex-1 min-h-[80px] px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none"
-          />
-          <Button type="submit">发送</Button>
+          <div className="flex-1 relative">
+            <textarea
+              value={sendForm.text}
+              onChange={(e) => onSendFormChange({ ...sendForm, text: e.target.value })}
+              onKeyDown={handleKeyDown}
+              placeholder="输入消息... (Enter 发送，Shift+Enter 换行)"
+              rows={1}
+              required
+              className="w-full min-h-[44px] max-h-[120px] px-4 py-2.5 text-sm rounded-2xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none"
+              style={{ height: 'auto' }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+              }}
+            />
+          </div>
+          <Button
+            type="submit"
+            size="icon"
+            className="h-11 w-11 rounded-full"
+            disabled={!sendForm.text.trim()}
+          >
+            📤
+          </Button>
+        </div>
+
+        {/* 提示信息 */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>💡 提示：按 Enter 快速发送，Shift+Enter 换行</span>
+          {!platformConnected && (
+            <span className="text-yellow-600">⚠️ 平台未连接</span>
+          )}
         </div>
       </form>
 

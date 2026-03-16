@@ -8,8 +8,11 @@ import { StatisticsPanel } from './modules/statistics/StatisticsPanel';
 import { OpenApiPanel } from './modules/openapi/OpenApiPanel';
 import { PluginsPanel } from './modules/plugins/PluginsPanel';
 import { LoginPage } from './modules/auth/LoginPage';
+import { HomePage } from './modules/home/HomePage';
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './hooks/useTheme';
 import { api } from './services/api';
+import { ThemeToggle } from './components/ui/theme-toggle';
 import {
   AppConfig,
   BotAccount,
@@ -35,7 +38,8 @@ import {
 
 function App() {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
-  const [activeMenu, setActiveMenu] = useState<MenuKey>('accounts');
+  const { theme } = useTheme();
+  const [activeMenu, setActiveMenu] = useState<MenuKey>('home');
 
   const [accounts, setAccounts] = useState<BotAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
@@ -55,8 +59,8 @@ function App() {
   const [platformLogs, setPlatformLogs] = useState<PlatformLog[]>([]);
 
   const [config, setConfig] = useState<AppConfig>({
-    webName: 'QQBot Console',
-    notice: '欢迎使用 QQ 机器人控制台。',
+    webName: 'Wawa-QQbot',
+    notice: '欢迎使用 Wawa-QQbot 智能机器人管理平台',
     allowOpenApi: true,
     defaultIntent: 0,
     updatedAt: new Date().toISOString()
@@ -439,8 +443,9 @@ function App() {
   };
 
   const menuItems: { key: MenuKey; label: string }[] = [
+    { key: 'home', label: '控制台首页' },
     { key: 'accounts', label: '账号管理' },
-    { key: 'chat', label: '聊天管理' },
+    { key: 'chat', label: '聊天中心' },
     { key: 'platform', label: 'QQ 平台连接' },
     { key: 'config', label: '配置中心' },
     { key: 'logs', label: '日志中心' },
@@ -451,6 +456,7 @@ function App() {
 
   const getMenuIcon = (key: MenuKey) => {
     switch (key) {
+      case 'home': return '🏠';
       case 'accounts': return '👥';
       case 'chat': return '💬';
       case 'platform': return '🔌';
@@ -496,10 +502,10 @@ function App() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar className="bg-gradient-to-b from-slate-900 to-slate-800 text-white">
-        <SidebarHeader className="border-slate-700">
+      <Sidebar className={theme === 'dark' ? 'bg-gradient-to-b from-slate-900 to-slate-800 text-white' : 'bg-gradient-to-b from-slate-100 to-white text-slate-900 border-r'}>
+        <SidebarHeader className={theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}>
           <span className="text-2xl">🤖</span>
-          <span className="font-semibold text-lg">{config.webName || 'QQBot Console'}</span>
+          <span className="font-semibold text-lg">{config.webName || 'Wawa-QQbot'}</span>
         </SidebarHeader>
         <SidebarContent>
           <SidebarNav>
@@ -510,8 +516,12 @@ function App() {
                 icon={getMenuIcon(item.key)}
                 onClick={() => setActiveMenu(item.key)}
                 className={activeMenu === item.key
-                  ? 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/30'
-                  : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                  ? theme === 'dark'
+                    ? 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/30'
+                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                  : theme === 'dark'
+                    ? 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }
               >
                 {item.label}
@@ -523,8 +533,9 @@ function App() {
 
       <main className="flex-1 flex flex-col">
         <header className="flex items-center justify-between px-6 py-4 border-b bg-card">
-          <h1 className="text-xl font-semibold">{config.webName || 'QQ 机器人控制台'}</h1>
+          <h1 className="text-xl font-semibold">{config.webName || 'Wawa-QQbot 控制台'}</h1>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <Badge variant={platformStatus.connected ? 'success' : 'secondary'}>
               平台状态：{platformStatus.connected ? '已连接' : platformStatus.connecting ? '连接中' : '未连接'}
             </Badge>
@@ -532,7 +543,7 @@ function App() {
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground">
                   {user.username}
-                  <span className="ml-1 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                  <span className="ml-1 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded dark:bg-blue-900 dark:text-blue-300">
                     {user.role === 'admin' ? '管理员' : '用户'}
                   </span>
                 </span>
@@ -553,6 +564,16 @@ function App() {
               {loading ? '处理中，请稍候...' : notice || config.notice}
             </p>
           </div>
+        )}
+
+        {activeMenu === 'home' && (
+          <HomePage
+            accounts={accounts}
+            platformStatus={platformStatus}
+            snapshot={snapshot}
+            plugins={plugins}
+            config={config}
+          />
         )}
 
         {activeMenu === 'accounts' && (

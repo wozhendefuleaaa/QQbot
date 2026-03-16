@@ -10,6 +10,7 @@ import { PluginConfigDialog } from './PluginConfigDialog';
 import { PluginUploadDialog } from './PluginUploadDialog';
 import { PluginCodeEditor } from './PluginCodeEditor';
 import { Button } from '@/components/ui/button';
+import { QuickTips, EmptyState } from '@/components/ui/help-tooltip';
 
 type Props = {
   plugins: PluginInfo[];
@@ -203,6 +204,19 @@ export function PluginsPanel({
 
   return (
     <div className="flex-1 p-6 space-y-6 overflow-auto">
+      {/* 新手引导 */}
+      {plugins.length === 0 && (
+        <QuickTips
+          tips={[
+            '插件可以扩展机器人的功能，如自动回复、命令处理等',
+            '点击「新建插件」可以从模板开始创建自己的插件',
+            '也可以「上传插件」导入已有的插件文件（.js 或 .ts）',
+            '启用插件后，机器人会自动加载插件的功能'
+          ]}
+          title="🧩 插件使用指南"
+        />
+      )}
+
       {/* 统计卡片 */}
       <PluginStats total={stats.total} enabled={stats.enabled} loaded={stats.loaded} />
 
@@ -228,24 +242,19 @@ export function PluginsPanel({
         </CardHeader>
         <CardContent>
           {filteredPlugins.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground mb-4">
-                {plugins.length === 0 ? '暂无插件，点击上方按钮创建或上传插件' : '没有匹配的插件'}
-              </p>
-              {plugins.length === 0 && (
-                <div className="flex justify-center gap-2">
-                  <Button variant="outline" onClick={() => setShowUploadDialog(true)}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    上传插件
-                  </Button>
-                  <Button onClick={createNewPlugin}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    新建插件
-                  </Button>
-                </div>
-              )}
-            </div>
+            plugins.length === 0 ? (
+              <EmptyState
+                icon="🧩"
+                title="还没有安装插件"
+                description="插件可以扩展机器人的功能。创建一个新插件或上传已有的插件文件开始使用。"
+              />
+            ) : (
+              <EmptyState
+                icon="🔍"
+                title="没有找到匹配的插件"
+                description="尝试修改搜索关键词或筛选条件"
+              />
+            )
           ) : (
             <div className="space-y-3">
               {filteredPlugins.map((p) => (
