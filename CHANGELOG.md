@@ -1,5 +1,51 @@
 # 更新日志 (Changelog)
 
+## [1.1.1] - 2026-03-17
+
+### Bug 修复
+
+#### 🔧 External API 路由认证修复
+- 修复 [`app.ts`](backend/src/core/app.ts) 中 External API 路由注册顺序问题
+  - 将 `registerExternalApiRoutes` 和 `registerSseRoutes` 移至 JWT 认证中间件之前
+  - External API 使用独立的 OpenAPI Token 认证机制，不应被 JWT 认证拦截
+  - 修复前：使用 OpenAPI Token 访问 `/api/external/*` 会先被 JWT 认证拦截返回 401
+  - 修复后：External API 路由正确使用自己的 `openApiAuth` 中间件验证 OpenAPI Token
+
+## [1.1.0] - 2026-03-17
+
+### 新增功能
+
+#### ⚙️ 配置中心重构
+- 重构 [`ConfigPanel.tsx`](webui/src/modules/config/ConfigPanel.tsx)
+  - 使用 React Query hooks 替换直接 API 调用，优化数据缓存和状态管理
+  - 添加 Toast 通知反馈（使用 sonner 库）
+  - 添加删除确认对话框，防止误操作
+  - 实现插件状态切换防抖（300ms），减少 API 请求
+  - 完善加载状态管理（骨架屏、加载动画）
+  - 添加批量操作功能（全启/全禁）
+  - 改进可访问性（ARIA 属性、键盘导航）
+  - 添加常量定义和类型注解
+
+#### 🔐 后端安全增强
+- 更新 [`config/routes.ts`](backend/src/modules/config/routes.ts)
+  - 所有配置路由添加认证保护
+  - 添加输入验证中间件
+  - 添加速率限制（配置更新 10次/分钟，权限操作 30次/分钟，切换操作 100次/分钟）
+  - 添加操作日志记录
+
+#### 🎨 用户体验优化
+- 新增 React Query hooks 用于插件权限矩阵操作
+  - `usePluginPermissionMatrix` - 获取权限矩阵
+  - `useAddGroupToMatrix` - 添加群组
+  - `useRemoveGroupFromMatrix` - 删除群组
+  - `useTogglePluginPermission` - 切换插件状态
+  - `useBatchTogglePluginPermission` - 批量切换
+
+### 技术细节
+- 安装 sonner 库用于 Toast 通知
+- 使用 TypeScript 泛型优化防抖函数类型
+- 使用 useMemo 和 useCallback 优化渲染性能
+
 ## [1.0.0] - 2026-03-16
 
 ### 新增功能

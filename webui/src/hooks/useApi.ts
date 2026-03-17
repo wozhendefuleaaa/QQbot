@@ -11,7 +11,8 @@ import {
   PluginInfo,
   StatisticsSnapshot,
   SystemLog,
-  QuickReply
+  QuickReply,
+  PluginPermissionMatrix
 } from '../types';
 
 // Query Keys
@@ -27,7 +28,34 @@ export const queryKeys = {
   plugins: ['plugins'] as const,
   openApiTokens: ['openApiTokens'] as const,
   quickReplies: ['quickReplies'] as const,
+  contacts: ['contacts'] as const,
 };
+
+// 联系人类型定义
+export interface AccountContacts {
+  accountId: string;
+  accountName: string;
+  groups: Array<{ id: string; name: string }>;
+}
+
+export interface AccountPrivateChats {
+  accountId: string;
+  accountName: string;
+  peers: Array<{ id: string; name: string }>;
+}
+
+export interface ContactsResponse {
+  groups: AccountContacts[];
+  privateChats: AccountPrivateChats[];
+}
+
+// 获取所有账号的群组和私聊列表
+export function useContacts() {
+  return useQuery({
+    queryKey: queryKeys.contacts,
+    queryFn: () => api<ContactsResponse>('/api/platform/contacts'),
+  });
+}
 
 // 账号相关 hooks
 export function useAccounts() {
@@ -279,5 +307,119 @@ export function useQuickReplies() {
     queryKey: queryKeys.quickReplies,
     queryFn: () => api<{ items: QuickReply[] }>('/api/quick-replies'),
     select: (data) => data.items,
+  });
+}
+
+// 插件权限矩阵 Query Keys
+export const pluginPermissionKeys = {
+  matrix: (accountId: string) => ['pluginPermissions', accountId] as const,
+};
+
+// 插件权限矩阵 hooks
+export function usePluginPermissionMatrix(accountId: string | null) {
+  return useQuery({
+    queryKey: pluginPermissionKeys.matrix(accountId || ''),
+    queryFn: () => {
+      if (!accountId) return null;
+      return api<PluginPermissionMatrix>(`/api/config/plugin-permissions/${accountId}`);
+    },
+    enabled: !!accountId,
+  });
+}
+
+export function useAddGroupToMatrix() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ accountId, groupId }: { accountId: string; groupId: string }) =>
+      api<{ ok: boolean; data: PluginPermissionMatrix }>(
+        `/api/config/plugin-permissions/${accountId}/groups`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ groupId }),
+        }
+      ),
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    },
+  });
+}
+
+export function useRemoveGroupFromMatrix() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ accountId, groupId }: { accountId: string; groupId: string }) =>
+      api<{ ok: boolean }>(
+        `/api/config/plugin-permissions/${accountId}/groups/${encodeURIComponent(groupId)}`,
+        { method: 'DELETE' }
+      ),
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    },
+  });
+}
+
+export function useTogglePluginPermission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      accountId,
+      groupId,
+      pluginId,
+      disabled,
+    }: {
+      accountId: string;
+      groupId: string;
+      pluginId: string;
+      disabled: boolean;
+    }) =>
+      api<{ ok: boolean; data: PluginPermissionMatrix }>(
+        `/api/config/plugin-permissions/${accountId}/toggle`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ groupId, pluginId, disabled }),
+        }
+      ),
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    },
+  });
+}
+
+// 批量切换插件权限
+export function useBatchTogglePluginPermission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      accountId,
+      groupId,
+      pluginIds,
+      disabled,
+    }: {
+      accountId: string;
+      groupId: string;
+      pluginIds: string[];
+      disabled: boolean;
+    }) => {
+      // 批量发送多个请求
+      const results = await Promise.all(
+        pluginIds.map((pluginId) =>
+          api<{ ok: boolean; data: PluginPermissionMatrix }>(
+            `/api/config/plugin-permissions/${accountId}/toggle`,
+            {
+              method: 'PATCH',
+              body: JSON.stringify({ groupId, pluginId, disabled }),
+            }
+          )
+        )
+      );
+      return results;
+    },
+    onSuccess: (_, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    },
   });
 }

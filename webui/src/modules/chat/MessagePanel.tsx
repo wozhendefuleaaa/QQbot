@@ -212,13 +212,13 @@ export function MessagePanel({
   };
 
   return (
-    <div className="flex flex-col flex-1 bg-card overflow-hidden">
+    <div className="flex flex-col flex-1 bg-card overflow-hidden min-w-0 h-full max-h-full">
       {/* 头部 */}
-      <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-card to-muted/20">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b bg-gradient-to-r from-card to-muted/20 shrink-0">
+        <div className="flex items-center gap-2 lg:gap-3 min-w-0">
           {conversation && (
             <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center font-medium text-white shadow-sm",
+              "w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center font-medium text-white shadow-sm shrink-0",
               conversation.peerType === 'group'
                 ? "bg-gradient-to-br from-blue-400 to-blue-600"
                 : "bg-gradient-to-br from-green-400 to-green-600"
@@ -226,31 +226,31 @@ export function MessagePanel({
               {conversation.peerName.charAt(0).toUpperCase()}
             </div>
           )}
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">
+              <h2 className="text-base lg:text-lg font-semibold truncate">
                 {conversation ? (conversation.remark || conversation.peerName) : '选择会话'}
               </h2>
               {conversation && (
-                <Badge variant={conversation.peerType === 'group' ? 'default' : 'secondary'} className="text-xs">
+                <Badge variant={conversation.peerType === 'group' ? 'default' : 'secondary'} className="text-[10px] lg:text-xs shrink-0">
                   {conversation.peerType === 'group' ? '👥 群聊' : '👤 私聊'}
                 </Badge>
               )}
             </div>
             {conversation && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-[10px] lg:text-xs text-muted-foreground truncate block">
                 ID: {conversation.peerId}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 lg:gap-2 shrink-0">
           {conversation && conversation.peerType === 'group' && accountId && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowGroupManage(true)}
-              className="gap-1"
+              className="gap-1 h-7 lg:h-8 text-[10px] lg:text-xs"
             >
               ⚙️ 群管理
             </Button>
@@ -259,7 +259,7 @@ export function MessagePanel({
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1 text-muted-foreground"
+              className="gap-1 text-muted-foreground h-7 lg:h-8 text-[10px] lg:text-xs"
             >
               ℹ️ 详情
             </Button>
@@ -268,19 +268,19 @@ export function MessagePanel({
       </div>
 
       {/* 消息区域 */}
-      <div 
-        className="flex-1 overflow-auto p-4 space-y-3"
+      <div
+        className="flex-1 min-h-0 overflow-auto p-3 lg:p-4 space-y-2 lg:space-y-3"
         onClick={closeContextMenu}
-        style={{ 
+        style={{
           backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--muted-foreground) / 0.1) 1px, transparent 0)',
           backgroundSize: '24px 24px'
         }}
       >
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-6xl mb-4">💬</div>
-            <p className="text-muted-foreground text-lg">开始聊天吧</p>
-            <p className="text-muted-foreground text-sm mt-1">
+          <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
+            <div className="text-4xl lg:text-6xl mb-3 lg:mb-4">💬</div>
+            <p className="text-muted-foreground text-sm lg:text-lg">开始聊天吧</p>
+            <p className="text-muted-foreground text-xs lg:text-sm mt-1">
               发送消息开始与对方的对话
             </p>
           </div>
@@ -288,33 +288,34 @@ export function MessagePanel({
           <>
             {/* 加载更多按钮 */}
             {hasMoreMessages && (
-              <div className="flex justify-center mb-4">
+              <div className="flex justify-center mb-3 lg:mb-4">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={onLoadMore}
                   disabled={loadingMore}
-                  className="bg-card/80 backdrop-blur-sm"
+                  className="bg-card/80 backdrop-blur-sm h-7 lg:h-8 text-[10px] lg:text-xs"
                 >
                   {loadingMore ? '⏳ 加载中...' : '↑ 加载更多历史消息'}
                 </Button>
               </div>
             )}
-            {messages.map((msg) => (
+            {messages.map((msg, index) => (
               <div
                 key={msg.id}
                 className={cn(
-                  "max-w-[75%] group",
+                  "max-w-[85%] lg:max-w-[75%] group animate-slide-up",
                   msg.direction === 'out' ? "ml-auto" : "mr-auto"
                 )}
+                style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}
               >
                 <div
                   className={cn(
-                    "relative p-3 rounded-2xl cursor-context-menu shadow-sm transition-all",
+                    "relative p-2 lg:p-3 rounded-2xl cursor-context-menu shadow-sm transition-all duration-200",
                     msg.direction === 'out'
                       ? "bg-primary text-primary-foreground rounded-br-sm"
                       : "bg-muted rounded-bl-sm",
-                    "hover:shadow-md"
+                    "hover:shadow-md hover:scale-[1.01]"
                   )}
                   onContextMenu={(e) => handleContextMenu(e, msg.id)}
                 >
@@ -401,7 +402,7 @@ export function MessagePanel({
       </div>
 
       {/* 输入区域 */}
-      <form onSubmit={onSendMessage} className="border-t p-4 space-y-3 bg-card">
+      <form onSubmit={onSendMessage} className="border-t p-3 lg:p-4 space-y-2 lg:space-y-3 bg-card shrink-0">
         {/* 目标选择 - 简化版 */}
         {conversation && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
@@ -473,15 +474,15 @@ export function MessagePanel({
         )}
 
         {/* 工具栏和消息输入 */}
-        <div className="flex gap-2 items-end">
-          <div className="flex gap-1">
+        <div className="flex gap-1.5 lg:gap-2 items-end">
+          <div className="flex gap-0.5 lg:gap-1">
             <Button
               type="button"
               variant={showEmojiPicker ? 'default' : 'ghost'}
               size="icon"
               onClick={handleToggleEmojiPicker}
               title="选择表情"
-              className="h-9 w-9"
+              className="h-8 w-8 lg:h-9 lg:w-9 text-sm lg:text-base"
             >
               😀
             </Button>
@@ -491,7 +492,7 @@ export function MessagePanel({
               size="icon"
               onClick={handleToggleQuickReplies}
               title="快捷回复"
-              className="h-9 w-9"
+              className="h-8 w-8 lg:h-9 lg:w-9 text-sm lg:text-base"
             >
               📝
             </Button>
@@ -502,7 +503,7 @@ export function MessagePanel({
               onClick={handleSelectImage}
               disabled={isUploading || !conversation}
               title="发送图片"
-              className="h-9 w-9"
+              className="h-8 w-8 lg:h-9 lg:w-9 text-sm lg:text-base"
             >
               {isUploading ? '⏳' : '🖼️'}
             </Button>
@@ -514,7 +515,7 @@ export function MessagePanel({
             className="hidden"
             onChange={handleImageChange}
           />
-          <div className="flex-1 relative">
+          <div className="flex-1 relative min-w-0">
             <textarea
               value={sendForm.text}
               onChange={(e) => onSendFormChange({ ...sendForm, text: e.target.value })}
@@ -522,19 +523,20 @@ export function MessagePanel({
               placeholder="输入消息... (Enter 发送，Shift+Enter 换行)"
               rows={1}
               required
-              className="w-full min-h-[44px] max-h-[120px] px-4 py-2.5 text-sm rounded-2xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none"
+              className="w-full min-h-[40px] lg:min-h-[44px] max-h-[100px] lg:max-h-[120px] px-3 lg:px-4 py-2 lg:py-2.5 text-xs lg:text-sm rounded-xl lg:rounded-2xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none transition-all duration-200"
               style={{ height: 'auto' }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
                 target.style.height = 'auto';
-                target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                const maxHeight = window.innerWidth >= 1024 ? 120 : 100;
+                target.style.height = Math.min(target.scrollHeight, maxHeight) + 'px';
               }}
             />
           </div>
           <Button
             type="submit"
             size="icon"
-            className="h-11 w-11 rounded-full"
+            className="h-10 w-10 lg:h-11 lg:w-11 rounded-full shrink-0"
             disabled={!sendForm.text.trim()}
           >
             📤
@@ -542,10 +544,10 @@ export function MessagePanel({
         </div>
 
         {/* 提示信息 */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>💡 提示：按 Enter 快速发送，Shift+Enter 换行</span>
+        <div className="flex items-center justify-between text-[10px] lg:text-xs text-muted-foreground">
+          <span className="truncate">💡 提示：按 Enter 快速发送，Shift+Enter 换行</span>
           {!platformConnected && (
-            <span className="text-yellow-600">⚠️ 平台未连接</span>
+            <span className="text-yellow-600 shrink-0 ml-2">⚠️ 平台未连接</span>
           )}
         </div>
       </form>

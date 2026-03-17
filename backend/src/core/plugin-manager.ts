@@ -2,7 +2,7 @@ import { existsSync, promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Plugin, PluginContext, PluginConfig, MessageEvent, CommandDefinition, CommandPermission } from './plugin-types.js';
-import { addSystemLog, plugins as pluginRegistry, savePluginsToDisk, accounts, platformStatus, conversations, messages } from './store.js';
+import { addSystemLog, plugins as pluginRegistry, savePluginsToDisk, accounts, platformStatus, conversations, messages, appConfig } from './store.js';
 import { trySendToQQ } from '../modules/platform/gateway.js';
 import { broadcastNewMessage } from '../modules/sse/routes.js';
 import { Message } from '../types.js';
@@ -320,6 +320,29 @@ function generateHelpText(): string {
 }
 
 /**
+ * 检查插件是否被禁用（基于权限矩阵）
+ */
+function isPluginDisabled(pluginId: string, accountId: string | null, groupId: string | undefined): boolean {
+  if (!accountId) return false;
+  
+  // 对于私聊，groupId 为 undefined，使用 'private' 作为标识
+  const effectiveGroupId = groupId || 'private';
+  
+  // 获取该账号的权限矩阵
+  const permMatrix = appConfig.pluginPermissions[accountId];
+  if (!permMatrix) return false;
+  
+  // 检查该群组是否在配置中
+  if (!permMatrix.groups.includes(effectiveGroupId)) return false;
+  
+  // 检查该插件是否在该群组的禁用列表中
+  const disabledList = permMatrix.disabledPlugins[effectiveGroupId];
+  if (!disabledList) return false;
+  
+  return disabledList.includes(pluginId);
+}
+
+/**
  * 处理消息 - 分发给所有启用的插件
  */
 export async function dispatchMessage(message: Message, peerId?: string, peerType?: 'user' | 'group', inboundMsgId?: string): Promise<boolean> {
@@ -345,9 +368,13 @@ export async function dispatchMessage(message: Message, peerId?: string, peerTyp
     return false;
   }
   
-  // 按优先级排序插件
+  // 获取当前连接的账号ID
+  const currentAccountId = platformStatus.connectedAccountId;
+  
+  // 按优先级排序插件，并过滤掉被禁用的插件
   const sortedPlugins = Array.from(loadedPlugins.values())
     .filter(p => p.enabled !== false)
+    .filter(p => !isPluginDisabled(p.id, currentAccountId, event.groupId))
     .sort((a, b) => (a.priority || 100) - (b.priority || 100));
   
   // 构建回复信息，用于插件直接回复消息

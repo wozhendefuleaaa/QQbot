@@ -72,6 +72,7 @@ export const appConfig: AppConfig = {
   notice: '欢迎使用 QQ 机器人控制台。',
   allowOpenApi: true,
   defaultIntent: gatewayIntents,
+  pluginPermissions: {},
   updatedAt: nowIso()
 };
 
@@ -123,6 +124,28 @@ export async function loadAppConfigFromDisk() {
     appConfig.defaultIntent = Number.isFinite(Number(parsed.defaultIntent))
       ? Number(parsed.defaultIntent)
       : appConfig.defaultIntent;
+    // 兼容旧配置：将 pluginBlacklist 转换为 pluginPermissions
+    if (parsed.pluginPermissions && typeof parsed.pluginPermissions === 'object') {
+      appConfig.pluginPermissions = parsed.pluginPermissions;
+    } else if (Array.isArray((parsed as any).pluginBlacklist)) {
+      // 转换旧的黑名单格式到新格式
+      const oldBlacklist = (parsed as any).pluginBlacklist;
+      for (const rule of oldBlacklist) {
+        if (!rule.accountId || !rule.groupId || !Array.isArray(rule.pluginIds)) continue;
+        if (!appConfig.pluginPermissions[rule.accountId]) {
+          appConfig.pluginPermissions[rule.accountId] = {
+            accountId: rule.accountId,
+            groups: [],
+            disabledPlugins: {}
+          };
+        }
+        const perm = appConfig.pluginPermissions[rule.accountId];
+        if (!perm.groups.includes(rule.groupId)) {
+          perm.groups.push(rule.groupId);
+        }
+        perm.disabledPlugins[rule.groupId] = rule.pluginIds;
+      }
+    }
     appConfig.updatedAt = parsed.updatedAt || appConfig.updatedAt;
   }
 }

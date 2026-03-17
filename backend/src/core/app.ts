@@ -132,7 +132,13 @@ app.get('/ready', async (_req, res) => {
 // 认证路由（无需认证）
 registerAuthRoutes(app);
 
-// 以下路由需要认证保护
+// External API 路由（使用独立的 OpenAPI Token 认证，必须在 JWT 认证中间件之前注册）
+registerExternalApiRoutes(app);
+
+// SSE 路由（无需 JWT 认证，使用独立的认证机制）
+registerSseRoutes(app);
+
+// 以下路由需要 JWT 认证保护
 app.use('/api', authMiddleware);
 
 registerAccountRoutes(app);
@@ -145,8 +151,6 @@ registerStatisticsRoutes(app);
 registerOpenApiRoutes(app);
 registerQuickReplyRoutes(app);
 registerGroupRoutes(app);
-registerExternalApiRoutes(app);
-registerSseRoutes(app);
 
 // 404 处理
 app.use(notFoundHandler);

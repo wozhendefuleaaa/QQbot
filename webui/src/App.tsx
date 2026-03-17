@@ -63,6 +63,7 @@ function App() {
     notice: '欢迎使用 Wawa-QQbot 智能机器人管理平台',
     allowOpenApi: true,
     defaultIntent: 0,
+    pluginPermissions: {},
     updatedAt: new Date().toISOString()
   });
   const [logs, setLogs] = useState<SystemLog[]>([]);
@@ -501,7 +502,7 @@ function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar className={theme === 'dark' ? 'bg-gradient-to-b from-slate-900 to-slate-800 text-white' : 'bg-gradient-to-b from-slate-100 to-white text-slate-900 border-r'}>
         <SidebarHeader className={theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}>
           <span className="text-2xl">🤖</span>
@@ -531,8 +532,8 @@ function App() {
         </SidebarContent>
       </Sidebar>
 
-      <main className="flex-1 flex flex-col">
-        <header className="flex items-center justify-between px-6 py-4 border-b bg-card">
+      <main className="flex-1 flex flex-col overflow-hidden h-full">
+        <header className="flex items-center justify-between px-6 py-4 border-b bg-card shrink-0">
           <h1 className="text-xl font-semibold">{config.webName || 'Wawa-QQbot 控制台'}</h1>
           <div className="flex items-center gap-4">
             <ThemeToggle />
@@ -589,10 +590,12 @@ function App() {
         )}
 
         {activeMenu === 'chat' && (
-          <ChatPanel
-            accounts={accounts}
-            platformStatus={platformStatus}
-          />
+          <div className="flex-1 min-h-0 overflow-hidden p-4 lg:p-6">
+            <ChatPanel
+              accounts={accounts}
+              platformStatus={platformStatus}
+            />
+          </div>
         )}
 
         {activeMenu === 'platform' && (

@@ -99,11 +99,21 @@ export type PluginInfo = {
   updatedAt: string;
 };
 
+// 插件权限矩阵 - 按机器人账号存储
+// 每个机器人有自己的群组列表和插件权限配置
+export type PluginPermissionMatrix = {
+  accountId: string;                    // 机器人账号ID
+  groups: string[];                     // 群组ID列表 (包含 'private' 表示私聊)
+  disabledPlugins: Record<string, string[]>;  // key: groupId, value: 禁用的插件ID列表
+};
+
 export type AppConfig = {
   webName: string;
   notice: string;
   allowOpenApi: boolean;
   defaultIntent: number;
+  // 插件权限矩阵配置 - 按机器人账号索引
+  pluginPermissions: Record<string, PluginPermissionMatrix>;  // key: accountId
   updatedAt: string;
 };
 

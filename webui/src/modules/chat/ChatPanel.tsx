@@ -363,10 +363,7 @@ export function ChatPanel({ accounts, platformStatus }: Props) {
   };
 
   return (
-    <section className={cn(
-      "flex flex-1 overflow-hidden",
-      "panel-chat-v2" // Keep for any legacy styles
-    )}>
+    <section className="panel-chat-v2 flex flex-1 overflow-hidden h-full w-full">
       {/* 左侧：账号导航 */}
       <AccountNav
         accounts={accounts}

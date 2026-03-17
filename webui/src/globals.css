@@ -46,24 +46,211 @@
   }
   
   .dark {
-    --color-background: hsl(222.2 84% 4.9%);
-    --color-foreground: hsl(210 40% 98%);
-    --color-card: hsl(222.2 84% 4.9%);
-    --color-card-foreground: hsl(210 40% 98%);
-    --color-popover: hsl(222.2 84% 4.9%);
-    --color-popover-foreground: hsl(210 40% 98%);
-    --color-primary: hsl(217.2 91.2% 59.8%);
-    --color-primary-foreground: hsl(222.2 47.4% 11.2%);
-    --color-secondary: hsl(217.2 32.6% 17.5%);
-    --color-secondary-foreground: hsl(210 40% 98%);
-    --color-muted: hsl(217.2 32.6% 17.5%);
-    --color-muted-foreground: hsl(215 20.2% 65.1%);
-    --color-accent: hsl(217.2 32.6% 17.5%);
-    --color-accent-foreground: hsl(210 40% 98%);
-    --color-destructive: hsl(0 62.8% 30.6%);
-    --color-destructive-foreground: hsl(210 40% 98%);
-    --color-border: hsl(217.2 32.6% 17.5%);
-    --color-input: hsl(217.2 32.6% 17.5%);
-    --color-ring: hsl(224.3 76.3% 48%);
+    /* 主背景 - 使用深蓝灰色，比纯黑更柔和 */
+    --color-background: hsl(220 20% 10%);
+    --color-foreground: hsl(220 15% 92%);
+    
+    /* 卡片背景 - 略微提亮，增加层次感 */
+    --color-card: hsl(220 20% 13%);
+    --color-card-foreground: hsl(220 15% 92%);
+    
+    /* 弹出层 - 更亮一些，突出层级 */
+    --color-popover: hsl(220 20% 15%);
+    --color-popover-foreground: hsl(220 15% 95%);
+    
+    /* 主色调 - 柔和的蓝色，降低饱和度避免刺眼 */
+    --color-primary: hsl(215 65% 55%);
+    --color-primary-foreground: hsl(0 0% 100%);
+    
+    /* 次要色 - 中等灰度，用于次要按钮和元素 */
+    --color-secondary: hsl(220 15% 22%);
+    --color-secondary-foreground: hsl(220 15% 88%);
+    
+    /* 静音色 - 用于背景装饰和禁用状态 */
+    --color-muted: hsl(220 15% 18%);
+    --color-muted-foreground: hsl(220 12% 55%);
+    
+    /* 强调色 - 用于悬停和选中状态 */
+    --color-accent: hsl(215 25% 25%);
+    --color-accent-foreground: hsl(220 15% 92%);
+    
+    /* 危险色 - 柔和的红色 */
+    --color-destructive: hsl(0 55% 50%);
+    --color-destructive-foreground: hsl(220 20% 98%);
+    
+    /* 边框 - 微妙的可见度 */
+    --color-border: hsl(220 15% 22%);
+    
+    /* 输入框 - 略深于边框 */
+    --color-input: hsl(220 18% 18%);
+    
+    /* 焦点环 - 与主色调协调 */
+    --color-ring: hsl(215 65% 55%);
+  }
+}
+
+/* 自定义动画 */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out forwards;
+  }
+  
+  .animate-slide-in-left {
+    animation: slide-in-left 0.3s ease-out forwards;
+  }
+  
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out forwards;
+  }
+  
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out forwards;
+  }
+  
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+}
+
+/* 主题切换按钮动画 */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes glow-light {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes glow-dark {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.15);
+  }
+}
+
+@layer utilities {
+  .animate-twinkle {
+    animation: twinkle 2s ease-in-out infinite;
+  }
+  
+  .animate-glow-light {
+    animation: glow-light 3s ease-in-out infinite;
+  }
+  
+  .animate-glow-dark {
+    animation: glow-dark 3s ease-in-out infinite;
+  }
+}
+
+/* 响应式滚动条 */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+  
+  /* 响应式调整 */
+  @media (max-width: 640px) {
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
   }
 }

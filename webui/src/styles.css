@@ -527,10 +527,10 @@ button.link {
 /* ===== 新版聊天面板样式 ===== */
 
 .panel-chat-v2 {
-  display: grid;
-  grid-template-columns: 180px 280px 1fr;
-  height: calc(100vh - 140px);
-  background: #fff;
+  display: flex;
+  height: 100%;
+  max-height: 100%;
+  background: var(--color-card, #fff);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
@@ -539,6 +539,7 @@ button.link {
 .panel-chat-v2 > * {
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 /* 账号导航栏 */
@@ -1793,13 +1794,13 @@ button.link {
 /* 响应式 */
 @media (max-width: 1200px) {
   .panel-chat-v2 {
-    grid-template-columns: 160px 240px 1fr;
+    /* Flex 布局自动适应 */
   }
 }
 
 @media (max-width: 980px) {
   .panel-chat-v2 {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     height: auto;
     min-height: calc(100vh - 140px);
   }
