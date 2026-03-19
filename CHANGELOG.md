@@ -4,18 +4,21 @@
 
 ### 新增功能
 
-#### 🚀 一键部署脚本
+#### 🚀 一键部署脚本（零基础用户友好）
 
 - 新增 [`deploy.sh`](deploy.sh) 一键部署脚本
+  - **交互式菜单界面**：直接运行 `./deploy.sh` 显示可视化菜单
+  - **配置向导**：引导用户填写 QQ 机器人 AppID、ClientSecret 等参数
+  - **一键部署**：自动检查依赖、安装依赖、初始化配置
+  - **服务管理**：一键启动/停止服务，查看服务状态
   - 支持本地开发部署 (`./deploy.sh local`)
   - 支持 Docker 容器化部署 (`./deploy.sh docker`)
   - 支持生产构建 (`./deploy.sh build`)
   - 自动检查系统依赖（Node.js、npm、Docker）
   - 自动生成安全的 JWT 密钥
   - 自动备份现有配置文件
-  - 支持服务状态查看 (`./deploy.sh status`)
-  - 支持停止所有服务 (`./deploy.sh stop`)
-  - 彩色终端输出，支持 macOS 和 Linux
+  - 彩色终端输出，全中文提示
+  - 支持 macOS 和 Linux
 
 ## [1.6.0] - 2026-03-18
 
