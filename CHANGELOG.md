@@ -1,5 +1,106 @@
 # 更新日志 (Changelog)
 
+## [1.11.0] - 2026-03-21
+
+### 重构
+
+#### 🔧 云崽适配器模块化重构
+
+- 将原有的 `yunzai-adapter.ts` 拆分为模块化架构，提高代码可维护性
+  - 新增 [`yunzai/types.ts`](backend/src/core/yunzai/types.ts) - 类型定义模块
+    - `YunzaiConfig` 配置类型
+    - `YunzaiPermissionConfig` 权限配置类型
+    - `SegmentType` 消息段类型
+    - `YunzaiGroup`、`YunzaiFriend`、`YunzaiMember` 对象类型
+    - `YunzaiRuntime` 运行时类型
+    - `YunzaiEvent` 事件类型
+    - `YunzaiBot` Bot对象类型
+
+  - 新增 [`yunzai/config.ts`](backend/src/core/yunzai/config.ts) - 配置管理模块
+    - `cfg` 全局配置对象
+    - `setYunzaiConfig`、`getYunzaiConfig`、`initYunzaiConfig` 配置函数
+    - `setPermissionConfig`、`getPermissionConfig` 权限配置函数
+    - `addMaster`、`removeMaster`、`addAdmin`、`removeAdmin` 权限管理函数
+    - `isMaster`、`isAdmin` 权限检查函数
+
+  - 新增 [`yunzai/segment.ts`](backend/src/core/yunzai/segment.ts) - 消息段构建模块
+    - `segment` 消息段构建器（text, image, at, reply, face, record, video, json, xml, poke, forward, node等）
+    - `parseMessageToSegments` 消息解析函数
+    - `segmentToText`、`segmentToString` 消息转换函数
+    - `segmentToQQOfficial`、`segmentsToQQOfficial` QQ官方API格式转换
+
+  - 新增 [`yunzai/handler.ts`](backend/src/core/yunzai/handler.ts) - 事件处理器模块
+    - `Handler` 全局事件处理器对象
+    - `createRuntimeHandler` 创建运行时处理器
+
+  - 新增 [`yunzai/plugin.ts`](backend/src/core/yunzai/plugin.ts) - 插件基类模块
+    - `YunzaiPlugin` 插件基类
+    - `reply` 消息回复方法
+    - `conKey` 上下文键生成
+    - `setContext`、`getContext`、`finish` 上下文管理
+    - `awaitContext`、`resolveContext` 异步上下文
+    - `renderImg` 图片渲染
+
+  - 新增 [`yunzai/event.ts`](backend/src/core/yunzai/event.ts) - 事件创建模块
+    - `createYunzaiEvent` 创建标准事件
+    - `createGuildMessageEvent` 创建频道消息事件
+    - `createPrivateMessageEvent` 创建私聊消息事件
+    - `createGroupMessageEvent` 创建群消息事件
+
+  - 新增 [`yunzai/bot.ts`](backend/src/core/yunzai/bot.ts) - Bot对象模块
+    - `createYunzaiBot` 创建完整Bot对象
+    - `createSimpleYunzaiBot` 创建简化Bot对象
+    - `BotManager` Bot管理器类
+
+  - 新增 [`yunzai/index.ts`](backend/src/core/yunzai/index.ts) - 主入口模块
+    - 统一导出所有模块
+    - `initYunzaiGlobals` 初始化全局对象
+    - `setGlobalBot`、`getGlobalBot` Bot管理
+    - `isYunzaiPlugin` 插件检测
+    - `loadYunzaiPlugin`、`convertYunzaiPlugin` 插件加载转换
+    - `matchRule`、`executePluginCommand` 命令执行
+    - `createYunzaiAdapter` 适配器创建
+
+- 更新 [`yunzai-adapter.ts`](backend/src/core/yunzai-adapter.ts) 为向后兼容入口
+  - 重新导出 `yunzai/index.ts` 的所有内容
+
+- 更新 [`plugin-manager.ts`](backend/src/core/plugin-manager.ts) 插件管理器
+  - 使用新的模块化API
+  - 改进Yunzai插件加载逻辑
+  - 正确创建Bot和Event对象
+
+- 更新 [`YUNZAI_ADAPTER.md`](backend/src/plugins/YUNZAI_ADAPTER.md) 文档
+  - 添加模块化架构说明
+  - 更新API参考文档
+  - 添加使用示例
+
+## [1.10.0] - 2026-03-21
+
+### 优化
+
+#### 🧹 项目清理与优化
+
+- 删除无用的测试文件
+  - 移除 `backend/src/test-python-adapter.ts` - Python适配器测试脚本
+  - 移除 `backend/src/plugins/test-python-plugin.py` - 测试用Python插件
+  - 移除 `backend/src/plugins/standalone-test.py` - 独立测试脚本
+  - 移除 `backend/src/plugins/integration-test.py` - 集成测试脚本
+  - 移除 `backend/src/plugins/test-yunzai-plugins.js` - 云崽插件测试套件
+  - 移除 `backend/src/plugins/test-message-types.ts` - 消息类型测试插件
+  - 移除 `backend/src/plugins/example-plugin.js` - 重复的JS示例插件（保留TS版本）
+  - 移除 `backend/src/plugins/message-types-example.ts` - 消息类型示例（已整合到文档）
+
+- 前端样式优化
+  - 移除 `webui/src/styles.css` - 合并到 `globals.css`
+  - 统一使用 Tailwind CSS 主题系统
+
+- 保留的核心示例文件
+  - `example-plugin.ts` - TypeScript 插件示例
+  - `example-plugin.py` - Python 插件示例
+  - `example-yunzai-plugin.ts` - 云崽插件示例
+  - `PYTHON_PLUGIN_GUIDE.md` - Python 插件开发指南
+  - `YUNZAI_ADAPTER.md` - 云崽插件适配文档
+
 ## [1.9.0] - 2026-03-21
 
 ### 新增功能

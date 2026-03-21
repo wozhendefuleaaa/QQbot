@@ -246,22 +246,44 @@ wawa-qqbot/
 │   │   ├── core/           # 核心模块
 │   │   │   ├── app.ts      # 应用入口
 │   │   │   ├── store.ts    # 状态管理
+│   │   │   ├── auth.ts     # 认证系统
 │   │   │   ├── plugin-manager.ts    # 插件管理
-│   │   │   └── plugin-types.ts      # 插件类型
+│   │   │   ├── plugin-types.ts      # 插件类型
+│   │   │   ├── python-adapter.ts    # Python 插件适配器
+│   │   │   ├── yunzai-adapter.ts    # 云崽插件适配器入口
+│   │   │   ├── yunzai/              # 云崽适配器模块
+│   │   │   │   ├── types.ts         # 类型定义
+│   │   │   │   ├── config.ts        # 配置管理
+│   │   │   │   ├── segment.ts       # 消息段构建
+│   │   │   │   ├── handler.ts       # 事件处理器
+│   │   │   │   ├── plugin.ts        # 插件基类
+│   │   │   │   ├── event.ts         # 事件创建
+│   │   │   │   ├── bot.ts           # Bot对象
+│   │   │   │   └── index.ts         # 主入口
+│   │   │   └── middleware/ # 中间件
 │   │   ├── modules/        # 功能模块
 │   │   │   ├── accounts/   # 账号管理
+│   │   │   ├── auth/       # 认证路由
 │   │   │   ├── chat/       # 聊天功能
 │   │   │   ├── platform/   # 平台连接
 │   │   │   ├── plugins/    # 插件路由
 │   │   │   ├── external/   # 外部 API
 │   │   │   └── ...
 │   │   ├── plugins/        # 插件目录
+│   │   │   ├── example-plugin.ts       # TypeScript 插件示例
+│   │   │   ├── example-plugin.py       # Python 插件示例
+│   │   │   ├── example-yunzai-plugin.ts # 云崽插件示例
+│   │   │   ├── PYTHON_PLUGIN_GUIDE.md  # Python 插件开发指南
+│   │   │   └── YUNZAI_ADAPTER.md       # 云崽插件适配文档
 │   │   └── types.ts        # 类型定义
 │   └── data/               # 数据存储
 ├── webui/                  # 前端代码
 │   └── src/
 │       ├── modules/        # 页面模块
-│       └── services/       # API 服务
+│       ├── services/       # API 服务
+│       ├── hooks/          # 自定义 Hooks
+│       ├── contexts/       # React Context
+│       └── components/     # UI 组件
 └── docker-compose.yml      # Docker 编排
 ```
 
@@ -300,7 +322,23 @@ cd webui && npm run build
 curl -X POST http://localhost:3000/api/plugins/my-plugin/reload
 ```
 
+## 插件开发指南
+
+### TypeScript 插件
+
+参考 [`example-plugin.ts`](backend/src/plugins/example-plugin.ts) 获取完整的 TypeScript 插件示例。
+
+### Python 插件
+
+参考 [`PYTHON_PLUGIN_GUIDE.md`](backend/src/plugins/PYTHON_PLUGIN_GUIDE.md) 获取详细的 Python 插件开发指南。
+
+### 云崽插件
+
+参考 [`YUNZAI_ADAPTER.md`](backend/src/plugins/YUNZAI_ADAPTER.md) 了解如何使用云崽插件格式。
+
 ## 更新日志
+
+查看 [CHANGELOG.md](CHANGELOG.md) 获取完整的更新历史。
 
 ### v1.1.0 (2026-03-14)
 

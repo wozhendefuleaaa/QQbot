@@ -6,7 +6,7 @@ import { addSystemLog, plugins as pluginRegistry, savePluginsToDisk, accounts, p
 import { trySendToQQ } from '../modules/platform/gateway.js';
 import { broadcastNewMessage } from '../modules/sse/routes.js';
 import { Message } from '../types.js';
-import { isYunzaiPlugin, loadYunzaiPlugin, initYunzaiGlobals, YunzaiPlugin } from './yunzai-adapter.js';
+import { isYunzaiPlugin, loadYunzaiPlugin, initYunzaiGlobals, YunzaiPlugin, createYunzaiBot, createYunzaiEvent, convertYunzaiPlugin } from './yunzai/index.js';
 import { loadPythonPlugin, isPythonPlugin, unloadPythonPlugin as unloadPythonPluginProcess } from './python-adapter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -191,59 +191,93 @@ export async function loadPluginFromFile(filePath: string): Promise<Plugin | Plu
     // 首先检查是否是云崽插件
     if (isYunzaiPlugin(module.default) || isYunzaiPlugin(module)) {
       addSystemLog('INFO', 'plugin', `检测到云崽插件格式: ${filePath}`);
-      const yunzaiPlugin = loadYunzaiPlugin(module.default || module, path.basename(filePath, path.extname(filePath)));
+      
+      // 创建一个简单的 Bot 对象用于初始化
+      const bot = createYunzaiBot('default', {}, {
+        sendMessage: async (targetId, targetType, text) => {
+          addSystemLog('INFO', 'plugin', `[Yunzai] 发送消息到 ${targetType}:${targetId}: ${text}`);
+        }
+      });
+      
+      // 初始化云崽全局对象
+      initYunzaiGlobals(bot);
+      
+      // 创建一个空的事件对象用于插件加载
+      const emptyEvent = createYunzaiEvent({ author: { id: '' }, content: '' }, 'default', async () => {});
+      
+      // 加载云崽插件
+      const yunzaiPlugin = await loadYunzaiPlugin(filePath, bot, emptyEvent);
       if (yunzaiPlugin) {
-        // 初始化云崽全局对象
-        const ctx = createPluginContext(Array.isArray(yunzaiPlugin) ? (yunzaiPlugin as Plugin[])[0].id : (yunzaiPlugin as Plugin).id);
-        initYunzaiGlobals(ctx);
+        // 转换为内部插件格式
+        const convertedPlugin = convertYunzaiPlugin(yunzaiPlugin, bot);
         
-        // 处理单个或多个插件
-        const plugins = Array.isArray(yunzaiPlugin) ? yunzaiPlugin : [yunzaiPlugin];
-        const loadedList: Plugin[] = [];
+        const pluginId = path.basename(filePath, path.extname(filePath));
+        const ctx = createPluginContext(pluginId);
         
-        for (const plugin of plugins) {
-          if (!plugin || !plugin.id || !plugin.name) {
-            continue;
+        // 创建转换后的插件对象
+        const plugin: Plugin = {
+          id: pluginId,
+          name: yunzaiPlugin.name || convertedPlugin.name || pluginId,
+          version: '1.0.0',
+          description: yunzaiPlugin.dsc || convertedPlugin.description || '',
+          enabled: true,
+          commands: convertedPlugin.commands.map((cmd: { name: string; description: string; pattern: string | RegExp; handler: (event: any) => Promise<any> }) => ({
+            name: cmd.name,
+            description: cmd.description,
+            pattern: typeof cmd.pattern === 'string' ? cmd.pattern : cmd.pattern.source,
+            handler: async (args: string[], event: MessageEvent, ctx: PluginContext) => {
+              // 将内部消息事件转换为 Yunzai 事件格式
+              const yunzaiEvent = createYunzaiEvent(
+                event.message,
+                ctx.getConnectedAccountId() || 'default',
+                async (targetId, targetType, text) => {
+                  await ctx.sendMessage(targetId, targetType, text);
+                }
+              );
+              return cmd.handler(yunzaiEvent);
+            }
+          })),
+          onLoad: async () => {
+            addSystemLog('INFO', 'plugin', `[云崽] 插件初始化: ${yunzaiPlugin.name}`);
           }
-          
-          // 检查是否在注册表中启用
-          const registry = pluginRegistry.find(p => p.id === plugin.id);
-          if (registry && !registry.enabled) {
-            addSystemLog('INFO', 'plugin', `插件已禁用，跳过加载: ${plugin.name}`);
-            continue;
-          }
-          
-          // 如果已加载，先卸载
-          if (loadedPlugins.has(plugin.id)) {
-            await unloadPlugin(plugin.id);
-          }
-          
-          // 加载插件
-          if (plugin.onLoad) {
-            await plugin.onLoad(ctx);
-          }
-          
-          loadedPlugins.set(plugin.id, plugin);
-          loadedList.push(plugin);
-          addSystemLog('INFO', 'plugin', `[云崽] 插件已加载: ${plugin.name}`);
-          
-          // 更新或添加到注册表
-          if (!registry) {
-            pluginRegistry.unshift({
-              id: plugin.id,
-              name: plugin.name,
-              enabled: true,
-              version: plugin.version,
-              description: plugin.description,
-              updatedAt: new Date().toISOString()
-            });
-          }
+        };
+        
+        // 检查是否在注册表中启用
+        const registry = pluginRegistry.find(p => p.id === plugin.id);
+        if (registry && !registry.enabled) {
+          addSystemLog('INFO', 'plugin', `插件已禁用，跳过加载: ${plugin.name}`);
+          return null;
+        }
+        
+        // 如果已加载，先卸载
+        if (loadedPlugins.has(plugin.id)) {
+          await unloadPlugin(plugin.id);
+        }
+        
+        // 加载插件
+        if (plugin.onLoad) {
+          await plugin.onLoad(ctx);
+        }
+        
+        loadedPlugins.set(plugin.id, plugin);
+        addSystemLog('INFO', 'plugin', `[云崽] 插件已加载: ${plugin.name}`);
+        
+        // 更新或添加到注册表
+        if (!registry) {
+          pluginRegistry.unshift({
+            id: plugin.id,
+            name: plugin.name,
+            enabled: true,
+            version: plugin.version,
+            description: plugin.description,
+            updatedAt: new Date().toISOString()
+          });
         }
         
         await savePluginsToDisk();
         helpCommandCache = null;
         
-        return loadedList.length === 1 ? loadedList[0] : loadedList;
+        return plugin;
       }
     }
     
