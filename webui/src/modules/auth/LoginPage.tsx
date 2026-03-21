@@ -55,7 +55,7 @@ export function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white dark:bg-card rounded-2xl shadow-xl p-8">
           {/* Logo / Title */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
@@ -73,14 +73,14 @@ export function LoginPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">QQ Bot 平台</h1>
-            <p className="text-gray-500 mt-2">请登录以继续</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-foreground">QQ Bot 平台</h1>
+            <p className="text-gray-500 dark:text-muted-foreground mt-2">请登录以继续</p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
 
@@ -89,7 +89,7 @@ export function LoginPage() {
             <div>
               <label
                 htmlFor="username"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 dark:text-foreground mb-1"
               >
                 用户名
               </label>
@@ -98,7 +98,7 @@ export function LoginPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-input rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
                 placeholder="请输入用户名"
                 autoComplete="username"
               />
@@ -107,7 +107,7 @@ export function LoginPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 dark:text-foreground mb-1"
               >
                 密码
               </label>
@@ -116,7 +116,7 @@ export function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-input rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
                 placeholder="请输入密码"
                 autoComplete="current-password"
               />
@@ -156,7 +156,7 @@ export function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-gray-400 text-sm mt-6">
+        <p className="text-center text-gray-400 dark:text-muted-foreground text-sm mt-6">
           © 2024 QQ Bot 管理平台
         </p>
       </div>

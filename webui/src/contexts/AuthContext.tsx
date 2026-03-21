@@ -6,9 +6,11 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginRequest) => Promise<{ success: boolean; message: string }>;
+  requirePasswordChange: boolean;
+  login: (credentials: LoginRequest) => Promise<{ success: boolean; message: string; requirePasswordChange?: boolean }>;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  clearRequirePasswordChange: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -21,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem(TOKEN_KEY);
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [requirePasswordChange, setRequirePasswordChange] = useState(false);
 
   const checkAuth = useCallback(async () => {
     const storedToken = localStorage.getItem(TOKEN_KEY);
@@ -42,6 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json();
         setUser(data.user);
         setToken(storedToken);
+        // 检查是否需要修改密码
+        if (data.user?.requirePasswordChange) {
+          setRequirePasswordChange(true);
+        }
       } else {
         // Token invalid, clear it
         localStorage.removeItem(TOKEN_KEY);
@@ -61,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, [checkAuth]);
 
-  const login = async (credentials: LoginRequest): Promise<{ success: boolean; message: string }> => {
+  const login = async (credentials: LoginRequest): Promise<{ success: boolean; message: string; requirePasswordChange?: boolean }> => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -77,6 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(TOKEN_KEY, data.token);
         setToken(data.token);
         setUser(data.user);
+        // 检查是否需要修改密码
+        if (data.user.requirePasswordChange) {
+          setRequirePasswordChange(true);
+          return { success: true, message: data.message, requirePasswordChange: true };
+        }
         return { success: true, message: data.message };
       }
 
@@ -90,6 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(TOKEN_KEY);
     setUser(null);
     setToken(null);
+    setRequirePasswordChange(false);
+  };
+
+  const clearRequirePasswordChange = () => {
+    setRequirePasswordChange(false);
+    if (user) {
+      setUser({ ...user, requirePasswordChange: undefined });
+    }
   };
 
   return (
@@ -99,9 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         isAuthenticated: !!user && !!token,
         isLoading,
+        requirePasswordChange,
         login,
         logout,
         checkAuth,
+        clearRequirePasswordChange,
       }}
     >
       {children}

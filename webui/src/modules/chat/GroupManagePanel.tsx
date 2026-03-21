@@ -181,11 +181,11 @@ export function GroupManagePanel({
           {!isConnected ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <p className="text-destructive font-medium">平台未连接或账号不匹配</p>
-              <p className="text-muted-foreground text-sm mt-1">请先连接到对应账号的平台</p>
+              <p className="text-black text-sm mt-1">请先连接到对应账号的平台</p>
             </div>
           ) : loading ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-muted-foreground">加载中...</p>
+              <p className="text-black">加载中...</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -196,11 +196,11 @@ export function GroupManagePanel({
             </div>
           ) : members.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-muted-foreground">暂无群成员数据</p>
+              <p className="text-black">暂无群成员数据</p>
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">共 {members.length} 名成员</p>
+              <p className="text-sm text-black">共 {members.length} 名成员</p>
               {members.map((member) => (
                 <div
                   key={member.id}
@@ -220,7 +220,7 @@ export function GroupManagePanel({
                     )}
                     <div className="flex flex-col">
                       <span className="font-medium">{member.name}</span>
-                      <span className="text-xs text-muted-foreground">ID: {member.id}</span>
+                      <span className="text-xs text-black">ID: {member.id}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

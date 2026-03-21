@@ -20,8 +20,24 @@ export function registerPluginRoutes(app: Express) {
   // 获取插件源码
   app.get('/api/plugins/:id/source', async (req, res) => {
     try {
-      const pluginFile = path.join(PLUGINS_DIR, `${req.params.id}.ts`);
-      const jsPluginFile = path.join(PLUGINS_DIR, `${req.params.id}.js`);
+      const pluginId = req.params.id;
+      
+      // 处理云崽插件的特殊ID格式（如 test-yunzai-plugins-0, test-yunzai-plugins-1 等）
+      // 这些插件来自同一个文件，需要提取原始文件名
+      let basePluginId = pluginId;
+      const yunzaiMatch = pluginId.match(/^(.+)-(\d+)$/);
+      if (yunzaiMatch) {
+        // 检查是否存在对应的基础文件
+        const baseName = yunzaiMatch[1];
+        const baseTsFile = path.join(PLUGINS_DIR, `${baseName}.ts`);
+        const baseJsFile = path.join(PLUGINS_DIR, `${baseName}.js`);
+        if (fs.existsSync(baseTsFile) || fs.existsSync(baseJsFile)) {
+          basePluginId = baseName;
+        }
+      }
+      
+      const pluginFile = path.join(PLUGINS_DIR, `${basePluginId}.ts`);
+      const jsPluginFile = path.join(PLUGINS_DIR, `${basePluginId}.js`);
       
       let filePath = '';
       if (fs.existsSync(pluginFile)) {
@@ -75,25 +91,32 @@ export function registerPluginRoutes(app: Express) {
       const loadedPlugin = await loadPluginFromFile(filePath);
       
       if (loadedPlugin) {
-        // 检查是否已存在于 plugins 数组中
-        const existingIndex = plugins.findIndex(p => p.id === loadedPlugin.id);
-        if (existingIndex < 0) {
-          // 添加到 plugins 数组
-          const newPluginInfo: PluginInfo = {
-            id: loadedPlugin.id,
-            name: loadedPlugin.name,
-            version: loadedPlugin.version || '1.0.0',
-            description: loadedPlugin.description || '',
-            author: loadedPlugin.author || 'Unknown',
-            enabled: true,
-            priority: loadedPlugin.priority || 50,
-            updatedAt: nowIso()
-          };
-          plugins.push(newPluginInfo);
-          savePluginsToDisk();
+        // 处理单个插件或插件数组
+        const pluginArray = Array.isArray(loadedPlugin) ? loadedPlugin : [loadedPlugin];
+        
+        for (const plugin of pluginArray) {
+          // 检查是否已存在于 plugins 数组中
+          const existingIndex = plugins.findIndex(p => p.id === plugin.id);
+          if (existingIndex < 0) {
+            // 添加到 plugins 数组
+            const newPluginInfo: PluginInfo = {
+              id: plugin.id,
+              name: plugin.name,
+              version: plugin.version || '1.0.0',
+              description: plugin.description || '',
+              author: plugin.author || 'Unknown',
+              enabled: true,
+              priority: plugin.priority || 50,
+              updatedAt: nowIso()
+            };
+            plugins.push(newPluginInfo);
+          }
+          addSystemLog('INFO', 'plugin', `已上传并加载插件：${plugin.name} (${safeName})`);
         }
-        addSystemLog('INFO', 'plugin', `已上传并加载插件：${loadedPlugin.name} (${safeName})`);
-        res.status(201).json({ id: loadedPlugin.id, filename: safeName, loaded: true });
+        
+        savePluginsToDisk();
+        const firstPlugin = pluginArray[0];
+        res.status(201).json({ id: firstPlugin.id, filename: safeName, loaded: true, count: pluginArray.length });
       } else {
         addSystemLog('WARN', 'plugin', `已上传插件文件但加载失败：${safeName}`);
         res.status(201).json({ id: pluginId, filename: safeName, loaded: false });

@@ -21,7 +21,7 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">统计中心</h2>
-          <p className="text-muted-foreground">查看系统运行统计数据</p>
+          <p className="text-black">查看系统运行统计数据</p>
         </div>
         <Button variant="outline" onClick={onRefresh}>刷新统计</Button>
       </div>
@@ -29,7 +29,7 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
       {!snapshot ? (
         <Card>
           <CardContent className="py-12">
-            <p className="text-muted-foreground text-center">暂无统计数据</p>
+            <p className="text-black text-center">暂无统计数据</p>
           </CardContent>
         </Card>
       ) : (
@@ -42,19 +42,19 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">日期</span>
+                  <span className="text-sm text-black">日期</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.date}</p>
                 </div>
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">在线账号</span>
+                  <span className="text-sm text-black">在线账号</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.activeAccounts} / {snapshot.totalAccounts}</p>
                 </div>
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">会话总数</span>
+                  <span className="text-sm text-black">会话总数</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.conversations}</p>
                 </div>
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">平台状态</span>
+                  <span className="text-sm text-black">平台状态</span>
                   <div className="mt-1">
                     <Badge variant={snapshot.platformConnected ? 'success' : 'destructive'}>
                       {snapshot.platformConnected ? '已连接' : '未连接'}
@@ -73,19 +73,19 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">入站消息</span>
+                  <span className="text-sm text-black">入站消息</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.inboundMessages}</p>
                 </div>
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">出站消息</span>
+                  <span className="text-sm text-black">出站消息</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.outboundMessages}</p>
                 </div>
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">私聊会话</span>
+                  <span className="text-sm text-black">私聊会话</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.privateConversations}</p>
                 </div>
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">群聊会话</span>
+                  <span className="text-sm text-black">群聊会话</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.groupConversations}</p>
                 </div>
               </div>
@@ -100,15 +100,15 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">平台运行时间</span>
+                  <span className="text-sm text-black">平台运行时间</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.platformUptime > 0 ? formatUptime(snapshot.platformUptime) : '-'}</p>
                 </div>
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">快捷回复</span>
+                  <span className="text-sm text-black">快捷回复</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.quickReplies}</p>
                 </div>
                 <div className="p-4 rounded-lg border bg-card">
-                  <span className="text-sm text-muted-foreground">插件数量</span>
+                  <span className="text-sm text-black">插件数量</span>
                   <p className="text-xl font-semibold mt-1">{snapshot.plugins}</p>
                 </div>
               </div>
@@ -123,7 +123,7 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
               </CardHeader>
               <CardContent>
                 {snapshot.topGroups.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">暂无数据</p>
+                  <p className="text-black text-center py-4">暂无数据</p>
                 ) : (
                   <div className="space-y-3">
                     {snapshot.topGroups.map((g, i) => (
@@ -133,11 +133,11 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
                             i === 0 ? 'bg-yellow-500 text-white' :
                             i === 1 ? 'bg-gray-400 text-white' :
                             i === 2 ? 'bg-amber-700 text-white' :
-                            'bg-muted text-muted-foreground'
+                            'bg-muted text-black'
                           }`}>{i + 1}</span>
                           <span className="font-medium">{g.name}</span>
                         </div>
-                        <span className="text-muted-foreground">{g.messageCount} 条</span>
+                        <span className="text-black">{g.messageCount} 条</span>
                       </div>
                     ))}
                   </div>
@@ -151,7 +151,7 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
               </CardHeader>
               <CardContent>
                 {snapshot.topUsers.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">暂无数据</p>
+                  <p className="text-black text-center py-4">暂无数据</p>
                 ) : (
                   <div className="space-y-3">
                     {snapshot.topUsers.map((u, i) => (
@@ -161,11 +161,11 @@ export function StatisticsPanel({ snapshot, onRefresh }: Props) {
                             i === 0 ? 'bg-yellow-500 text-white' :
                             i === 1 ? 'bg-gray-400 text-white' :
                             i === 2 ? 'bg-amber-700 text-white' :
-                            'bg-muted text-muted-foreground'
+                            'bg-muted text-black'
                           }`}>{i + 1}</span>
                           <span className="font-medium">{u.name}</span>
                         </div>
-                        <span className="text-muted-foreground">{u.messageCount} 条</span>
+                        <span className="text-black">{u.messageCount} 条</span>
                       </div>
                     ))}
                   </div>

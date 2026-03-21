@@ -6,6 +6,8 @@ import { addSystemLog, plugins as pluginRegistry, savePluginsToDisk, accounts, p
 import { trySendToQQ } from '../modules/platform/gateway.js';
 import { broadcastNewMessage } from '../modules/sse/routes.js';
 import { Message } from '../types.js';
+import { isYunzaiPlugin, loadYunzaiPlugin, initYunzaiGlobals, YunzaiPlugin } from './yunzai-adapter.js';
+import { loadPythonPlugin, isPythonPlugin, unloadPythonPlugin as unloadPythonPluginProcess } from './python-adapter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGINS_DIR = path.join(__dirname, '..', 'plugins');
@@ -90,19 +92,29 @@ async function ensurePluginsDir(): Promise<void> {
 }
 
 /**
- * 扫描并加载所有插件
+ * 扫描并加载所有插件（包括云崽插件包）
  */
 export async function loadAllPlugins(): Promise<void> {
   await ensurePluginsDir();
   
-  const files = await fs.readdir(PLUGINS_DIR);
-  const pluginFiles = files.filter(f => f.endsWith('.js') || f.endsWith('.mjs'));
+  const files = await fs.readdir(PLUGINS_DIR, { withFileTypes: true });
   
-  for (const file of pluginFiles) {
+  for (const file of files) {
+    const fullPath = path.join(PLUGINS_DIR, file.name);
+    
     try {
-      await loadPluginFromFile(path.join(PLUGINS_DIR, file));
+      if (file.isDirectory()) {
+        // 检查是否是云崽插件包目录
+        await loadPluginPackage(fullPath);
+      } else if (file.isFile() && (file.name.endsWith('.js') || file.name.endsWith('.mjs') || file.name.endsWith('.ts'))) {
+        // 加载单个插件文件
+        await loadPluginFromFile(fullPath);
+      } else if (file.isFile() && file.name.endsWith('.py')) {
+        // 加载 Python 插件
+        await loadPythonPluginFile(fullPath);
+      }
     } catch (error) {
-      addSystemLog('ERROR', 'plugin', `加载插件文件失败: ${file} - ${error}`);
+      addSystemLog('ERROR', 'plugin', `加载插件失败: ${file.name} - ${error}`);
     }
   }
   
@@ -113,15 +125,129 @@ export async function loadAllPlugins(): Promise<void> {
 }
 
 /**
+ * 加载云崽插件包目录
+ * 云崽插件包格式：
+ * - 插件目录/
+ *   - index.js 或 index.mjs (入口文件)
+ *   - apps/ (可选，多个插件文件)
+ *   - package.json (可选，元数据)
+ */
+async function loadPluginPackage(packageDir: string): Promise<void> {
+  const packageName = path.basename(packageDir);
+  
+  // 检查入口文件
+  const entryFiles = ['index.js', 'index.mjs', 'main.js', 'main.mjs', 'app.js', 'app.mjs'];
+  let entryFile: string | null = null;
+  
+  for (const name of entryFiles) {
+    const filePath = path.join(packageDir, name);
+    if (existsSync(filePath)) {
+      entryFile = filePath;
+      break;
+    }
+  }
+  
+  // 检查 apps 目录
+  const appsDir = path.join(packageDir, 'apps');
+  if (existsSync(appsDir)) {
+    const appsFiles = await fs.readdir(appsDir);
+    const jsFiles = appsFiles.filter(f => f.endsWith('.js') || f.endsWith('.mjs'));
+    
+    for (const file of jsFiles) {
+      try {
+        await loadPluginFromFile(path.join(appsDir, file));
+      } catch (error) {
+        addSystemLog('ERROR', 'plugin', `加载插件包 ${packageName}/apps/${file} 失败: ${error}`);
+      }
+    }
+  }
+  
+  // 加载入口文件
+  if (entryFile) {
+    try {
+      await loadPluginFromFile(entryFile);
+    } catch (error) {
+      addSystemLog('ERROR', 'plugin', `加载插件包 ${packageName} 入口失败: ${error}`);
+    }
+  }
+  
+  // 如果没有入口文件也没有 apps 目录，记录警告
+  if (!entryFile && !existsSync(appsDir)) {
+    addSystemLog('WARN', 'plugin', `插件包 ${packageName} 没有找到入口文件或 apps 目录`);
+  }
+}
+
+/**
  * 从文件加载插件
  */
-export async function loadPluginFromFile(filePath: string): Promise<Plugin | null> {
+export async function loadPluginFromFile(filePath: string): Promise<Plugin | Plugin[] | null> {
   try {
     // ESM 模式下动态导入会自动处理缓存
     // 添加时间戳查询参数来绕过模块缓存，支持热重载
     const importPath = `${filePath}?t=${Date.now()}`;
     
     const module = await import(importPath);
+    
+    // 首先检查是否是云崽插件
+    if (isYunzaiPlugin(module.default) || isYunzaiPlugin(module)) {
+      addSystemLog('INFO', 'plugin', `检测到云崽插件格式: ${filePath}`);
+      const yunzaiPlugin = loadYunzaiPlugin(module.default || module, path.basename(filePath, path.extname(filePath)));
+      if (yunzaiPlugin) {
+        // 初始化云崽全局对象
+        const ctx = createPluginContext(Array.isArray(yunzaiPlugin) ? (yunzaiPlugin as Plugin[])[0].id : (yunzaiPlugin as Plugin).id);
+        initYunzaiGlobals(ctx);
+        
+        // 处理单个或多个插件
+        const plugins = Array.isArray(yunzaiPlugin) ? yunzaiPlugin : [yunzaiPlugin];
+        const loadedList: Plugin[] = [];
+        
+        for (const plugin of plugins) {
+          if (!plugin || !plugin.id || !plugin.name) {
+            continue;
+          }
+          
+          // 检查是否在注册表中启用
+          const registry = pluginRegistry.find(p => p.id === plugin.id);
+          if (registry && !registry.enabled) {
+            addSystemLog('INFO', 'plugin', `插件已禁用，跳过加载: ${plugin.name}`);
+            continue;
+          }
+          
+          // 如果已加载，先卸载
+          if (loadedPlugins.has(plugin.id)) {
+            await unloadPlugin(plugin.id);
+          }
+          
+          // 加载插件
+          if (plugin.onLoad) {
+            await plugin.onLoad(ctx);
+          }
+          
+          loadedPlugins.set(plugin.id, plugin);
+          loadedList.push(plugin);
+          addSystemLog('INFO', 'plugin', `[云崽] 插件已加载: ${plugin.name}`);
+          
+          // 更新或添加到注册表
+          if (!registry) {
+            pluginRegistry.unshift({
+              id: plugin.id,
+              name: plugin.name,
+              enabled: true,
+              version: plugin.version,
+              description: plugin.description,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+        
+        await savePluginsToDisk();
+        helpCommandCache = null;
+        
+        return loadedList.length === 1 ? loadedList[0] : loadedList;
+      }
+    }
+    
+    // 标准插件格式
     const plugin: Plugin = module.default || module.plugin;
     
     if (!plugin || !plugin.id || !plugin.name) {
@@ -174,6 +300,61 @@ export async function loadPluginFromFile(filePath: string): Promise<Plugin | nul
 }
 
 /**
+ * 加载 Python 插件文件
+ */
+async function loadPythonPluginFile(filePath: string): Promise<Plugin | null> {
+  try {
+    const ctx = createPluginContext(path.basename(filePath, '.py'));
+    const plugin = await loadPythonPlugin(filePath, ctx);
+    
+    if (!plugin) {
+      return null;
+    }
+    
+    // 检查是否在注册表中启用
+    const registry = pluginRegistry.find(p => p.id === plugin.id);
+    if (registry && !registry.enabled) {
+      addSystemLog('INFO', 'plugin', `插件已禁用，跳过加载: ${plugin.name}`);
+      return null;
+    }
+    
+    // 如果已加载，先卸载
+    if (loadedPlugins.has(plugin.id)) {
+      await unloadPlugin(plugin.id);
+    }
+    
+    // 调用 onLoad
+    if (plugin.onLoad) {
+      await plugin.onLoad(ctx);
+    }
+    
+    loadedPlugins.set(plugin.id, plugin);
+    addSystemLog('INFO', 'plugin', `[Python] 插件已加载: ${plugin.name} v${plugin.version}`);
+    
+    // 更新或添加到注册表
+    if (!registry) {
+      pluginRegistry.unshift({
+        id: plugin.id,
+        name: plugin.name,
+        enabled: true,
+        version: plugin.version,
+        description: plugin.description,
+        updatedAt: new Date().toISOString()
+      });
+      await savePluginsToDisk();
+    }
+    
+    // 清除帮助缓存
+    helpCommandCache = null;
+    
+    return plugin;
+  } catch (error) {
+    addSystemLog('ERROR', 'plugin', `加载 Python 插件失败: ${filePath} - ${error}`);
+    return null;
+  }
+}
+
+/**
  * 卸载插件
  */
 export async function unloadPlugin(pluginId: string): Promise<boolean> {
@@ -186,6 +367,9 @@ export async function unloadPlugin(pluginId: string): Promise<boolean> {
     if (plugin.onUnload) {
       await plugin.onUnload();
     }
+    
+    // 如果是 Python 插件，还需要终止进程
+    await unloadPythonPluginProcess(pluginId);
     
     loadedPlugins.delete(pluginId);
     addSystemLog('INFO', 'plugin', `插件已卸载: ${plugin.name}`);
@@ -206,16 +390,33 @@ export async function unloadPlugin(pluginId: string): Promise<boolean> {
 export async function reloadPlugin(pluginId: string): Promise<Plugin | null> {
   // 查找插件文件
   const files = await fs.readdir(PLUGINS_DIR);
-  const pluginFiles = files.filter(f => f.endsWith('.js') || f.endsWith('.mjs'));
+  const pluginFiles = files.filter(f =>
+    f.endsWith('.js') || f.endsWith('.mjs') || f.endsWith('.py')
+  );
   
   for (const file of pluginFiles) {
     const filePath = path.join(PLUGINS_DIR, file);
     try {
+      // Python 插件
+      if (file.endsWith('.py')) {
+        const result = await loadPythonPluginFile(filePath);
+        if (result && result.id === pluginId) {
+          return result;
+        }
+        continue;
+      }
+      
+      // JS/TS 插件
       const module = await import(filePath);
       const plugin: Plugin = module.default || module.plugin;
       
       if (plugin && plugin.id === pluginId) {
-        return loadPluginFromFile(filePath);
+        const result = await loadPluginFromFile(filePath);
+        // 如果返回数组，取第一个匹配的插件
+        if (Array.isArray(result)) {
+          return result.find(p => p.id === pluginId) || null;
+        }
+        return result;
       }
     } catch {
       // 忽略错误，继续查找

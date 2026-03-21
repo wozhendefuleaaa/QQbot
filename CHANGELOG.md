@@ -1,5 +1,124 @@
 # 更新日志 (Changelog)
 
+## [1.9.0] - 2026-03-21
+
+### 新增功能
+
+#### 🐍 Python 插件支持
+
+- 新增 [`python-adapter.ts`](backend/src/core/python-adapter.ts) Python 插件适配器
+  - 通过子进程方式运行 Python 插件，使用 JSON-RPC 风格通信
+  - 自动检测系统 Python 环境（python3/python）
+  - 内置 Python 运行时脚本，提供 `Plugin` 基类和 `PluginContext` 代理
+  - 支持命令注册、消息处理、生命周期钩子等完整插件功能
+  - 支持插件热重载和进程管理
+
+- 更新 [`plugin-manager.ts`](backend/src/core/plugin-manager.ts) 插件管理器
+  - 新增 `.py` 文件识别和加载支持
+  - 新增 `loadPythonPluginFile()` 函数处理 Python 插件
+  - 更新 `reloadPlugin()` 支持 Python 插件重载
+  - 卸载时自动清理 Python 进程
+
+- 新增 [`example-plugin.py`](backend/src/plugins/example-plugin.py) Python 插件示例
+  - 包含 `hello`、`echo`、`time`、`calc`、`roll` 等实用命令
+  - 演示命令装饰器、生命周期钩子、消息处理器的使用
+
+- 新增 [`PYTHON_PLUGIN_GUIDE.md`](backend/src/plugins/PYTHON_PLUGIN_GUIDE.md) 开发指南
+  - 详细的 Python 插件开发文档
+  - 包含插件元数据、生命周期、命令注册、上下文 API 等说明
+  - 提供完整的代码示例
+
+## [1.8.0] - 2026-03-20
+
+### 新增功能
+
+#### 📨 全面支持QQ机器人消息类型
+
+- 新增 [`gateway-message.ts`](backend/src/modules/platform/gateway-message.ts) 消息类型定义
+  - 定义 `QQ_MSG_TYPE` 常量：TEXT(0)、MARKDOWN(2)、ARK(3)、EMBED(4)、KEYBOARD(5)、MEDIA(7)
+  - 定义 `QQMarkdownPayload` 接口：支持自定义模板和参数
+  - 定义 `QQArkPayload` 接口：支持卡片模板和键值对
+  - 定义 `QQEmbedPayload` 接口：支持嵌入式卡片
+  - 定义 `QQKeyboardPayload` 接口：支持交互式按钮
+  - 定义 `QQMessagePayload` 统一消息载荷接口
+
+- 新增消息发送函数
+  - [`sendMarkdownMessage()`](backend/src/modules/platform/gateway-message.ts:458) - 发送Markdown格式消息
+  - [`sendArkMessage()`](backend/src/modules/platform/gateway-message.ts:513) - 发送Ark卡片消息
+  - [`sendEmbedMessage()`](backend/src/modules/platform/gateway-message.ts:568) - 发送Embed嵌入式消息
+  - [`sendKeyboardMessage()`](backend/src/modules/platform/gateway-message.ts:623) - 发送键盘交互消息
+  - [`sendMixedMessage()`](backend/src/modules/platform/gateway-message.ts:688) - 发送混合类型消息
+
+- 更新模块导出
+  - 更新 [`gateway-core.ts`](backend/src/modules/platform/gateway-core.ts) 导出所有新消息函数和类型
+  - 更新 [`gateway.ts`](backend/src/modules/platform/gateway.ts) 导出所有新消息函数和类型
+
+- 新增示例插件
+  - 创建 [`message-types-example.ts`](backend/src/plugins/message-types-example.ts) 展示各种消息类型用法
+  - 包含Markdown、Ark、Embed、Keyboard消息发送示例
+  - 包含键盘按钮回调处理示例
+
+- 新增测试插件
+  - 创建 [`test-message-types.ts`](backend/src/plugins/test-message-types.ts) 用于测试消息类型功能
+  - 提供 `/test-markdown` 命令测试Markdown消息
+  - 提供 `/test-ark` 命令测试Ark卡片消息
+  - 提供 `/test-embed` 命令测试Embed嵌入式消息
+  - 提供 `/test-keyboard` 命令测试键盘消息
+  - 提供 `/test-mixed` 命令测试混合消息
+  - 提供 `/test-all` 命令一键测试所有消息类型
+
+#### ✅ 功能测试结果
+
+- 文本消息发送测试：✅ 成功
+- Ark卡片消息发送测试：✅ 成功
+- 原生Markdown消息测试：⚠️ QQ平台返回40034124错误（需申请Markdown模板权限）
+- 原生键盘消息测试：⚠️ QQ平台返回50015006错误（需申请键盘消息权限）
+- Markdown+键盘组合消息测试：⚠️ QQ平台返回40034124错误
+
+> 注：Markdown和键盘消息需要在QQ开放平台申请相应权限和模板后才能使用。代码实现已就绪，权限开通后即可正常使用。
+
+## [1.7.1] - 2026-03-19
+
+### UI 优化
+
+#### 🎨 可访问性与主题语义色改进
+
+- 重构 [`sidebar.tsx`](webui/src/components/ui/sidebar.tsx) 侧边栏导航组件
+  - `SidebarNavItem` 从 `div` 改为 `button` 元素，提升键盘可访问性
+  - 添加 `aria-current="page"` 属性支持屏幕阅读器
+  - 添加 `focus-visible:ring-2` 焦点环样式
+  - 将 `text-black` 替换为 `text-muted-foreground` 语义色
+
+- 修复 [`MobileNav`](webui/src/components/ui/sidebar.tsx) 移动端底部导航
+  - 非激活状态从 `text-black` 改为 `text-muted-foreground`
+
+- 修复 [`MobileHeader`](webui/src/components/ui/sidebar.tsx) 移动端头部组件
+  - 副标题和状态文字从 `text-black` 改为 `text-muted-foreground`
+
+- 修复 [`App.tsx`](webui/src/App.tsx) 移动端更多菜单
+  - 菜单项标签从 `text-black` 改为 `text-muted-foreground`
+
+#### 🎨 组件主题一致性
+
+- 修复 [`input.tsx`](webui/src/components/ui/input.tsx) 输入框组件
+  - placeholder 从 `text-black` 改为 `text-muted-foreground`
+
+- 修复 [`card.tsx`](webui/src/components/ui/card.tsx) 卡片组件
+  - `CardDescription` 从 `text-black` 改为 `text-muted-foreground`
+
+- 修复 [`dialog.tsx`](webui/src/components/ui/dialog.tsx) 对话框组件
+  - 关闭按钮和描述文字从 `text-black` 改为 `text-muted-foreground`
+
+#### 🔔 全局提示区分级反馈
+
+- 升级 [`App.tsx`](webui/src/App.tsx) 通知系统
+  - 新增 `noticeSeverity` 状态区分 `info`/`success`/`error` 三种级别
+  - 新增 `showNotice()`/`showSuccess()`/`showError()` 辅助函数
+  - 通知栏根据级别显示不同背景色和图标
+  - 加载状态显示蓝色背景和旋转沙漏图标
+  - 成功消息显示绿色背景和 ✅ 图标
+  - 错误消息显示红色背景和 ❌ 图标
+
 ## [1.7.0] - 2026-03-19
 
 ### 新增功能

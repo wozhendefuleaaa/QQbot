@@ -1,6 +1,6 @@
 import { Express } from 'express';
 import { appConfig, saveAppConfigToDisk, addSystemLog } from '../../core/store.js';
-import { PluginPermissionMatrix, LogLevel } from '../../types.js';
+import { PluginPermissionMatrix, LogLevel, YunzaiPermissionConfig } from '../../types.js';
 import { authMiddleware } from '../../core/middleware/auth.js';
 import { validateBody, validateParams } from '../../core/middleware/validator.js';
 import { createRateLimiter } from '../../core/middleware/rate-limit.js';
@@ -30,6 +30,11 @@ const togglePluginSchema = {
 const permissionMatrixSchema = {
   groups: { type: 'array' as const },
   disabledPlugins: { type: 'object' as const },
+};
+
+const yunzaiPermissionSchema = {
+  masterIds: { type: 'array' as const },
+  adminIds: { type: 'array' as const },
 };
 
 // 速率限制器实例
@@ -279,6 +284,119 @@ export function registerConfigRoutes(app: Express) {
       }
 
       res.json({ ok: true, data: perm });
+        }
+      );
+    
+      // 获取云崽权限配置
+      app.get('/api/config/yunzai-permission', (_req, res) => {
+        res.json(appConfig.yunzaiPermission || { masterIds: [], adminIds: [] });
+      });
+    
+      // 更新云崽权限配置
+      app.post('/api/config/yunzai-permission',
+        configRateLimiter,
+        validateBody(yunzaiPermissionSchema),
+        async (req, res) => {
+          const { masterIds, adminIds } = req.body as YunzaiPermissionConfig;
+    
+          // 验证 masterIds
+          if (!Array.isArray(masterIds) || !masterIds.every(id => typeof id === 'string')) {
+            res.status(400).json({ error: 'masterIds 必须是字符串数组' });
+            return;
+          }
+    
+          // 验证 adminIds
+          if (!Array.isArray(adminIds) || !adminIds.every(id => typeof id === 'string')) {
+            res.status(400).json({ error: 'adminIds 必须是字符串数组' });
+            return;
+          }
+    
+          appConfig.yunzaiPermission = { masterIds, adminIds };
+          await saveAppConfigToDisk();
+          logConfigChange('INFO', `云崽权限配置已更新: 主人 ${masterIds.length} 人, 管理员 ${adminIds.length} 人`);
+          res.json({ ok: true, data: appConfig.yunzaiPermission });
+        }
+      );
+    
+      // 添加主人
+      app.post('/api/config/yunzai-permission/master',
+        permissionRateLimiter,
+        validateBody({ userId: { required: true, type: 'string', minLength: 1, maxLength: 100 } }),
+        async (req, res) => {
+          const { userId } = req.body as { userId: string };
+    
+          if (!appConfig.yunzaiPermission) {
+            appConfig.yunzaiPermission = { masterIds: [], adminIds: [] };
+          }
+    
+          if (!appConfig.yunzaiPermission.masterIds.includes(userId)) {
+            appConfig.yunzaiPermission.masterIds.push(userId);
+            await saveAppConfigToDisk();
+            logConfigChange('INFO', `添加云崽主人: ${userId}`);
+          }
+    
+          res.json({ ok: true, data: appConfig.yunzaiPermission });
+        }
+      );
+    
+      // 删除主人
+      app.delete('/api/config/yunzai-permission/master/:userId',
+        permissionRateLimiter,
+        validateParams({ userId: { required: true, type: 'string', minLength: 1, maxLength: 100 } }),
+        async (req, res) => {
+          const { userId } = req.params;
+    
+          if (appConfig.yunzaiPermission) {
+            const index = appConfig.yunzaiPermission.masterIds.indexOf(userId);
+            if (index !== -1) {
+              appConfig.yunzaiPermission.masterIds.splice(index, 1);
+              await saveAppConfigToDisk();
+              logConfigChange('INFO', `移除云崽主人: ${userId}`);
+            }
+          }
+    
+          res.json({ ok: true, data: appConfig.yunzaiPermission || { masterIds: [], adminIds: [] } });
+        }
+      );
+    
+      // 添加管理员
+      app.post('/api/config/yunzai-permission/admin',
+        permissionRateLimiter,
+        validateBody({ userId: { required: true, type: 'string', minLength: 1, maxLength: 100 } }),
+        async (req, res) => {
+          const { userId } = req.body as { userId: string };
+    
+          if (!appConfig.yunzaiPermission) {
+            appConfig.yunzaiPermission = { masterIds: [], adminIds: [] };
+          }
+    
+          if (!appConfig.yunzaiPermission.adminIds.includes(userId)) {
+            appConfig.yunzaiPermission.adminIds.push(userId);
+            await saveAppConfigToDisk();
+            logConfigChange('INFO', `添加云崽管理员: ${userId}`);
+          }
+    
+          res.json({ ok: true, data: appConfig.yunzaiPermission });
+        }
+      );
+    
+      // 删除管理员
+      app.delete('/api/config/yunzai-permission/admin/:userId',
+        permissionRateLimiter,
+        validateParams({ userId: { required: true, type: 'string', minLength: 1, maxLength: 100 } }),
+        async (req, res) => {
+          const { userId } = req.params;
+    
+          if (appConfig.yunzaiPermission) {
+            const index = appConfig.yunzaiPermission.adminIds.indexOf(userId);
+            if (index !== -1) {
+              appConfig.yunzaiPermission.adminIds.splice(index, 1);
+              await saveAppConfigToDisk();
+              logConfigChange('INFO', `移除云崽管理员: ${userId}`);
+            }
+          }
+    
+          res.json({ ok: true, data: appConfig.yunzaiPermission || { masterIds: [], adminIds: [] } });
+        }
+      );
     }
-  );
-}

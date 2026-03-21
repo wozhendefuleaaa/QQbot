@@ -10,13 +10,16 @@ import {
   toPublicAccount
 } from '../../core/store.js';
 import { connectGateway, disconnectGateway } from '../platform/gateway.js';
+import { authMiddleware } from '../../core/middleware/auth.js';
 
 export function registerAccountRoutes(app: Express) {
-  app.get('/api/accounts', (_req, res) => {
+  // 获取账号列表 - 需要认证
+  app.get('/api/accounts', authMiddleware, (_req, res) => {
     res.json({ items: accounts.map(toPublicAccount) });
   });
 
-  app.post('/api/accounts', async (req, res) => {
+  // 创建账号 - 需要认证
+  app.post('/api/accounts', authMiddleware, async (req, res) => {
     const { name, appId, appSecret } = req.body as {
       name?: string;
       appId?: string;
@@ -44,7 +47,8 @@ export function registerAccountRoutes(app: Express) {
     res.status(201).json(toPublicAccount(item));
   });
 
-  app.post('/api/accounts/:id/start', async (req, res) => {
+  // 启动账号 - 需要认证
+  app.post('/api/accounts/:id/start', authMiddleware, async (req, res) => {
     const item = accounts.find((a) => a.id === req.params.id);
     if (!item) {
       res.status(404).json({ error: '账号不存在' });
@@ -65,7 +69,8 @@ export function registerAccountRoutes(app: Express) {
     }
   });
 
-  app.post('/api/accounts/:id/stop', async (req, res) => {
+  // 停止账号 - 需要认证
+  app.post('/api/accounts/:id/stop', authMiddleware, async (req, res) => {
     const item = accounts.find((a) => a.id === req.params.id);
     if (!item) {
       res.status(404).json({ error: '账号不存在' });
@@ -83,7 +88,8 @@ export function registerAccountRoutes(app: Express) {
     res.json(toPublicAccount(item));
   });
 
-  app.delete('/api/accounts/:id', async (req, res) => {
+  // 删除账号 - 需要认证
+  app.delete('/api/accounts/:id', authMiddleware, async (req, res) => {
     const index = accounts.findIndex((a) => a.id === req.params.id);
     if (index === -1) {
       res.status(404).json({ error: '账号不存在' });

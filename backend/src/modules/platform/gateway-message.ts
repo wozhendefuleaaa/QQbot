@@ -2,6 +2,92 @@ import { BotAccount } from '../../types.js';
 import { addPlatformLog } from '../../core/store.js';
 import { qqAuthPrefix, qqGatewayApiBase, qqMessageApiTemplate } from '../../core/store.js';
 
+// QQ消息类型常量
+export const QQ_MSG_TYPE = {
+  TEXT: 0,           // 文本消息
+  MARKDOWN: 2,       // Markdown消息
+  ARK: 3,            // Ark消息
+  EMBED: 4,          // Embed消息
+  KEYBOARD: 5,       // 键盘消息
+  MEDIA: 7,          // 富媒体消息（图片等）
+} as const;
+
+// Markdown消息结构
+export interface QQMarkdownPayload {
+  custom_template_id?: string;  // 自定义模板ID
+  params?: Array<{              // 模板参数
+    key: string;
+    values: string[];
+  }>;
+}
+
+// Ark消息结构
+export interface QQArkPayload {
+  template_id: string;          // 模板ID
+  kv?: Array<{                  // 键值对
+    key: string;
+    value?: string;
+    obj?: Array<{               // 对象数组
+      obj_kv: Array<{
+        key: string;
+        value: string;
+      }>;
+    }>;
+  }>;
+}
+
+// Embed消息结构
+export interface QQEmbedPayload {
+  title?: string;               // 标题
+  prompt?: string;              // 提示
+  thumbnail?: {                 // 缩略图
+    url: string;
+  };
+  fields?: Array<{              // 字段
+    name: string;
+  }>;
+}
+
+// 键盘消息结构
+export interface QQKeyboardPayload {
+  rows: Array<{
+    buttons: Array<{
+      id?: string;
+      render_data: {
+        label: string;
+        visited_label?: string;
+        style?: number;
+      };
+      action: {
+        type: number;
+        permission?: {
+          type: number;
+          specify_role_ids?: string[];
+          specify_user_ids?: string[];
+        };
+        click_limit?: number;
+        data?: string;
+        at_bot_show_channel_list?: boolean;
+      };
+    }>;
+  }>;
+}
+
+// 统一消息载荷结构
+export interface QQMessagePayload {
+  msg_type: number;
+  msg_seq?: number;
+  msg_id?: string;
+  content?: string;
+  markdown?: QQMarkdownPayload;
+  ark?: QQArkPayload;
+  embed?: QQEmbedPayload;
+  keyboard?: QQKeyboardPayload;
+  media?: {
+    file_info: string;
+  };
+}
+
 // 消息发送频率限制器
 const sendRateLimiter = {
   lastSendTime: 0,
@@ -357,6 +443,307 @@ export async function sendImageMessage(
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     addPlatformLog('ERROR', `图片消息发送异常: ${errMsg}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 发送Markdown消息
+ * QQ 官方 API: POST /v2/users/{openid}/messages 或 POST /v2/groups/{group_openid}/messages
+ * msg_type: 2
+ */
+export async function sendMarkdownMessage(
+  account: BotAccount,
+  targetId: string,
+  markdown: QQMarkdownPayload,
+  msgId?: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  // 等待发送槽位
+  await sendRateLimiter.waitForSlot();
+
+  const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
+  const baseApi = qqGatewayApiBase.replace(/\/$/, '');
+  const path = targetType === 'group'
+    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
+    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  const url = `${baseApi}${path}`;
+
+  // 检查 msg_id 是否有效
+  const useMsgId = isMsgIdValid(msgId);
+
+  try {
+    const payload: QQMessagePayload = {
+      msg_type: QQ_MSG_TYPE.MARKDOWN,
+      msg_seq: Math.floor(Math.random() * 900000) + 100000,
+      markdown,
+    };
+
+    if (useMsgId) {
+      payload.msg_id = msgId;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `${qqAuthPrefix} ${token}`,
+        'X-Union-Appid': account.appId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      addPlatformLog('INFO', `Markdown消息发送成功: target=${targetId}`);
+      return { success: true };
+    }
+
+    const detail = await res.text().catch(() => '');
+    addPlatformLog('WARN', `Markdown消息发送失败: HTTP ${res.status} ${detail.slice(0, 200)}`);
+    return { success: false };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    addPlatformLog('ERROR', `Markdown消息发送异常: ${errMsg}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 发送Ark消息
+ * QQ 官方 API: POST /v2/users/{openid}/messages 或 POST /v2/groups/{group_openid}/messages
+ * msg_type: 3
+ */
+export async function sendArkMessage(
+  account: BotAccount,
+  targetId: string,
+  ark: QQArkPayload,
+  msgId?: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  // 等待发送槽位
+  await sendRateLimiter.waitForSlot();
+
+  const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
+  const baseApi = qqGatewayApiBase.replace(/\/$/, '');
+  const path = targetType === 'group'
+    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
+    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  const url = `${baseApi}${path}`;
+
+  // 检查 msg_id 是否有效
+  const useMsgId = isMsgIdValid(msgId);
+
+  try {
+    const payload: QQMessagePayload = {
+      msg_type: QQ_MSG_TYPE.ARK,
+      msg_seq: Math.floor(Math.random() * 900000) + 100000,
+      ark,
+    };
+
+    if (useMsgId) {
+      payload.msg_id = msgId;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `${qqAuthPrefix} ${token}`,
+        'X-Union-Appid': account.appId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      addPlatformLog('INFO', `Ark消息发送成功: target=${targetId}`);
+      return { success: true };
+    }
+
+    const detail = await res.text().catch(() => '');
+    addPlatformLog('WARN', `Ark消息发送失败: HTTP ${res.status} ${detail.slice(0, 200)}`);
+    return { success: false };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    addPlatformLog('ERROR', `Ark消息发送异常: ${errMsg}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 发送Embed消息
+ * QQ 官方 API: POST /v2/users/{openid}/messages 或 POST /v2/groups/{group_openid}/messages
+ * msg_type: 4
+ */
+export async function sendEmbedMessage(
+  account: BotAccount,
+  targetId: string,
+  embed: QQEmbedPayload,
+  msgId?: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  // 等待发送槽位
+  await sendRateLimiter.waitForSlot();
+
+  const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
+  const baseApi = qqGatewayApiBase.replace(/\/$/, '');
+  const path = targetType === 'group'
+    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
+    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  const url = `${baseApi}${path}`;
+
+  // 检查 msg_id 是否有效
+  const useMsgId = isMsgIdValid(msgId);
+
+  try {
+    const payload: QQMessagePayload = {
+      msg_type: QQ_MSG_TYPE.EMBED,
+      msg_seq: Math.floor(Math.random() * 900000) + 100000,
+      embed,
+    };
+
+    if (useMsgId) {
+      payload.msg_id = msgId;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `${qqAuthPrefix} ${token}`,
+        'X-Union-Appid': account.appId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      addPlatformLog('INFO', `Embed消息发送成功: target=${targetId}`);
+      return { success: true };
+    }
+
+    const detail = await res.text().catch(() => '');
+    addPlatformLog('WARN', `Embed消息发送失败: HTTP ${res.status} ${detail.slice(0, 200)}`);
+    return { success: false };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    addPlatformLog('ERROR', `Embed消息发送异常: ${errMsg}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 发送键盘消息
+ * QQ 官方 API: POST /v2/users/{openid}/messages 或 POST /v2/groups/{group_openid}/messages
+ * msg_type: 5 (keyboard)
+ */
+export async function sendKeyboardMessage(
+  account: BotAccount,
+  targetId: string,
+  keyboard: QQKeyboardPayload,
+  content?: string,
+  msgId?: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  // 等待发送槽位
+  await sendRateLimiter.waitForSlot();
+
+  const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
+  const baseApi = qqGatewayApiBase.replace(/\/$/, '');
+  const path = targetType === 'group'
+    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
+    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  const url = `${baseApi}${path}`;
+
+  // 检查 msg_id 是否有效
+  const useMsgId = isMsgIdValid(msgId);
+
+  try {
+    // 使用inline_keyboard格式（QQ官方推荐格式）
+    const payload: Record<string, unknown> = {
+      msg_type: QQ_MSG_TYPE.KEYBOARD,
+      msg_seq: Math.floor(Math.random() * 900000) + 100000,
+      inline_keyboard: keyboard,
+    };
+
+    if (content) {
+      payload.content = content;
+    }
+
+    if (useMsgId) {
+      payload.msg_id = msgId;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `${qqAuthPrefix} ${token}`,
+        'X-Union-Appid': account.appId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      addPlatformLog('INFO', `键盘消息发送成功: target=${targetId}`);
+      return { success: true };
+    }
+
+    const detail = await res.text().catch(() => '');
+    addPlatformLog('WARN', `键盘消息发送失败: HTTP ${res.status} ${detail.slice(0, 200)}`);
+    return { success: false };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    addPlatformLog('ERROR', `键盘消息发送异常: ${errMsg}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 发送混合消息（支持同时发送多种类型）
+ * QQ 官方 API: POST /v2/users/{openid}/messages 或 POST /v2/groups/{group_openid}/messages
+ */
+export async function sendMixedMessage(
+  account: BotAccount,
+  targetId: string,
+  payload: QQMessagePayload,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  // 等待发送槽位
+  await sendRateLimiter.waitForSlot();
+
+  const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
+  const baseApi = qqGatewayApiBase.replace(/\/$/, '');
+  const path = targetType === 'group'
+    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
+    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  const url = `${baseApi}${path}`;
+
+  try {
+    // 确保有msg_seq
+    if (!payload.msg_seq) {
+      payload.msg_seq = Math.floor(Math.random() * 900000) + 100000;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `${qqAuthPrefix} ${token}`,
+        'X-Union-Appid': account.appId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      addPlatformLog('INFO', `混合消息发送成功: target=${targetId} msg_type=${payload.msg_type}`);
+      return { success: true };
+    }
+
+    const detail = await res.text().catch(() => '');
+    addPlatformLog('WARN', `混合消息发送失败: HTTP ${res.status} ${detail.slice(0, 200)}`);
+    return { success: false };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    addPlatformLog('ERROR', `混合消息发送异常: ${errMsg}`);
     return { success: false };
   }
 }

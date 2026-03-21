@@ -10,7 +10,9 @@ import {
   getTokenExpiresIn,
   createUser,
   changePassword,
-  users
+  users,
+  isUsingDefaultPassword,
+  clearRequirePasswordChange
 } from '../../core/auth.js';
 import { LoginRequest, LoginResponse, AuthStatus, User } from '../../types.js';
 
@@ -45,11 +47,18 @@ router.post('/login', asyncHandler(async (req, res) => {
     });
   }
   
+  // 检查是否需要强制修改密码（使用默认密码或已标记）
+  const requirePasswordChange = user.requirePasswordChange === true || isUsingDefaultPassword(password);
+  
   // 更新最后登录时间
   updateUserLastLogin(user.id);
   
   // 生成 token
   const publicUser = toPublicUser(user);
+  // 如果需要修改密码，在用户信息中标记
+  if (requirePasswordChange) {
+    publicUser.requirePasswordChange = true;
+  }
   const token = generateToken(publicUser);
   
   const response: LoginResponse = {
@@ -99,10 +108,28 @@ router.get('/status', (req, res) => {
 router.post('/change-password', authMiddleware, asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   
-  if (!oldPassword || !newPassword) {
+  const user = users.find(u => u.id === req.user!.id);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      error: '用户不存在'
+    });
+  }
+  
+  // 如果用户需要强制修改密码，则不需要验证旧密码
+  const requirePasswordChange = user.requirePasswordChange === true;
+  
+  if (!requirePasswordChange && !oldPassword) {
     return res.status(400).json({
       success: false,
-      error: '旧密码和新密码不能为空'
+      error: '旧密码不能为空'
+    });
+  }
+  
+  if (!newPassword) {
+    return res.status(400).json({
+      success: false,
+      error: '新密码不能为空'
     });
   }
   
@@ -113,23 +140,21 @@ router.post('/change-password', authMiddleware, asyncHandler(async (req, res) =>
     });
   }
   
-  const user = users.find(u => u.id === req.user!.id);
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      error: '用户不存在'
-    });
-  }
-  
-  const isValid = await verifyPassword(oldPassword, user.passwordHash);
-  if (!isValid) {
-    return res.status(401).json({
-      success: false,
-      error: '旧密码错误'
-    });
+  // 非强制修改密码的情况，需要验证旧密码
+  if (!requirePasswordChange && oldPassword) {
+    const isValid = await verifyPassword(oldPassword, user.passwordHash);
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        error: '旧密码错误'
+      });
+    }
   }
   
   await changePassword(user.id, newPassword);
+  
+  // 清除密码修改标记
+  clearRequirePasswordChange(user.id);
   
   res.json({
     success: true,

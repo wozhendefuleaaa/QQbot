@@ -46,7 +46,7 @@ show_menu() {
     echo -e "${YELLOW}                        请选择操作                            ${NC}"
     echo -e "${YELLOW}═══════════════════════════════════════════════════════════════${NC}"
     echo ""
-    echo -e "  ${GREEN}1.${NC} 🚀 一键部署（推荐新手）     - 自动安装并启动服务"
+    echo -e "  ${GREEN}1.${NC} 🚀 一键部署（推荐新手）     - Docker 容器化自动部署"
     echo -e "  ${GREEN}2.${NC} 🐳 Docker 部署              - 使用 Docker 容器部署"
     echo -e "  ${GREEN}3.${NC} 📦 生产构建                  - 构建生产版本"
     echo ""
@@ -279,57 +279,92 @@ install_dependencies() {
     print_success "依赖安装完成！"
 }
 
-# 一键部署（本地开发）
+# 一键部署（Docker 容器化部署）
 deploy_local() {
     show_banner
-    print_step "🚀 开始一键部署..."
+    print_step "🚀 开始一键部署（Docker 容器化）..."
     echo ""
     
-    # 检查依赖
-    if ! check_dependencies; then
+    # 检查 Docker
+    if ! check_command docker; then
+        print_error "Docker 未安装，无法进行一键部署"
+        echo ""
+        print_tip "安装方法："
+        echo "  Ubuntu/Debian: curl -fsSL https://get.docker.com | sh"
+        echo "  CentOS/RHEL:   curl -fsSL https://get.docker.com | sh"
+        echo "  macOS:         brew install --cask docker"
+        echo "  Windows:       访问 https://www.docker.com/products/docker-desktop"
+        echo ""
         wait_key
         return 1
     fi
     
-    echo ""
+    # 检查 Docker Compose
+    if ! check_command docker-compose && ! docker compose version &> /dev/null; then
+        print_error "Docker Compose 未安装"
+        echo ""
+        print_tip "Docker Compose 通常随 Docker 一起安装，请检查 Docker 版本"
+        echo ""
+        wait_key
+        return 1
+    fi
     
-    # 初始化环境
+    # 初始化环境（静默模式，只创建 .env 文件）
     if [ ! -f ".env" ]; then
-        init_env
+        cp .env.example .env
+        # 生成随机 JWT 密钥
+        local jwt_secret=$(openssl rand -hex 32 2>/dev/null || node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null)
+        if [ -n "$jwt_secret" ]; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s/JWT_SECRET=.*/JWT_SECRET=$jwt_secret/" .env 2>/dev/null || true
+            else
+                sed -i "s/JWT_SECRET=.*/JWT_SECRET=$jwt_secret/" .env 2>/dev/null || true
+            fi
+        fi
+        print_success "已创建配置文件 .env"
     else
         print_info "检测到已有配置文件"
     fi
     
     echo ""
+    print_info "正在构建并启动 Docker 容器..."
+    echo ""
+    print_tip "首次运行需要下载镜像，可能需要较长时间..."
+    echo ""
     
-    # 安装依赖
-    print_step "正在安装依赖..."
-    install_dependencies
+    # 使用 docker-compose 或 docker compose
+    if check_command docker-compose; then
+        docker-compose up -d --build
+    else
+        docker compose up -d --build
+    fi
     
     echo ""
     print_success "════════════════════════════════════════════════════════════"
-    print_success "              🎉 部署完成！                                  "
+    print_success "              🎉 一键部署完成！                              "
     print_success "════════════════════════════════════════════════════════════"
     echo ""
-    print_info "启动方式："
-    echo "  开发模式: npm run dev"
-    echo "  后端服务: npm run dev:backend"
-    echo "  前端服务: npm run dev:webui"
+    print_info "容器状态："
+    if check_command docker-compose; then
+        docker-compose ps
+    else
+        docker compose ps
+    fi
     echo ""
     print_info "访问地址："
-    echo "  后端 API: http://localhost:3000"
     echo "  前端界面: http://localhost:5173"
+    echo "  后端 API: http://localhost:3001"
     echo ""
-    print_tip "首次使用请确保已配置 .env 文件中的 QQ_APP_ID 和 QQ_CLIENT_SECRET"
+    print_info "常用命令："
+    echo "  查看日志: docker-compose logs -f"
+    echo "  停止服务: docker-compose down"
+    echo "  重启服务: docker-compose restart"
     echo ""
-    
-    # 询问是否启动
+    print_tip "════════════════════════════════════════════════════════════"
+    print_tip "  登录 WebUI 后可在「配置」页面配置 QQ 机器人参数"
+    print_tip "  默认管理员密码: admin123（首次登录需修改）"
+    print_tip "════════════════════════════════════════════════════════════"
     echo ""
-    read -p "是否立即启动服务？(y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        start_services
-    fi
 }
 
 # 启动服务
@@ -686,7 +721,7 @@ if [ $# -gt 0 ]; then
             echo ""
             echo "命令:"
             echo "  (无参数)    显示交互式菜单"
-            echo "  local       本地开发部署"
+            echo "  local       一键部署（Docker 容器化部署）"
             echo "  docker      Docker 容器化部署"
             echo "  build       生产构建"
             echo "  init        初始化环境配置"
@@ -697,7 +732,7 @@ if [ $# -gt 0 ]; then
             echo ""
             echo "示例:"
             echo "  $0           # 显示交互式菜单（推荐新手）"
-            echo "  $0 local     # 本地开发部署"
+            echo "  $0 local     # 一键 Docker 部署"
             echo "  $0 docker    # Docker 部署"
             echo "  $0 status    # 查看状态"
             ;;

@@ -45,7 +45,7 @@ export function AccountNav({
           </div>
           <div className="flex flex-col items-start text-left min-w-0">
             <span className="text-xs lg:text-sm font-medium truncate">全部会话</span>
-            <span className="text-[10px] lg:text-xs text-muted-foreground truncate">聚合所有账号</span>
+            <span className="text-[10px] lg:text-xs text-black truncate">聚合所有账号</span>
           </div>
         </Button>
         
@@ -53,13 +53,13 @@ export function AccountNav({
         <div className="my-2 lg:my-3 border-t" />
         
         {/* 账号列表标题 */}
-        <div className="px-2 lg:px-3 py-1.5 text-[10px] lg:text-xs text-muted-foreground font-medium">
+        <div className="px-2 lg:px-3 py-1.5 text-[10px] lg:text-xs text-black font-medium">
           机器人账号
         </div>
         
         {/* 账号列表 */}
         {accounts.length === 0 ? (
-          <div className="text-center py-6 lg:py-8 text-muted-foreground">
+          <div className="text-center py-6 lg:py-8 text-black">
             <div className="text-2xl lg:text-3xl mb-2">🤖</div>
             <p className="text-xs lg:text-sm">暂无账号</p>
             <p className="text-[10px] lg:text-xs mt-1">请先添加机器人账号</p>
@@ -98,7 +98,7 @@ export function AccountNav({
                   <span className="text-xs lg:text-sm font-medium truncate">{account.name}</span>
                   <span className={cn(
                     "text-[10px] lg:text-xs truncate",
-                    isConnected ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+                    isConnected ? "text-green-600 dark:text-green-400" : "text-black"
                   )}>
                     {isConnected ? '🟢 在线' : account.status === 'DISABLED' ? '⏸️ 已禁用' : '⚪ 离线'}
                   </span>
@@ -111,7 +111,7 @@ export function AccountNav({
       
       {/* 底部提示 */}
       <div className="p-2 lg:p-3 border-t bg-muted/20">
-        <p className="text-[10px] lg:text-xs text-muted-foreground text-center">
+        <p className="text-[10px] lg:text-xs text-black text-center">
           💡 点击账号筛选会话
         </p>
       </div>

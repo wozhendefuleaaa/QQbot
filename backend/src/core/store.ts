@@ -73,6 +73,10 @@ export const appConfig: AppConfig = {
   allowOpenApi: true,
   defaultIntent: gatewayIntents,
   pluginPermissions: {},
+  yunzaiPermission: {
+    masterIds: [],
+    adminIds: []
+  },
   updatedAt: nowIso()
 };
 
@@ -85,7 +89,7 @@ async function ensureDataDir() {
   await fs.mkdir(dataDir, { recursive: true });
 }
 
-async function readJsonFile<T>(filePath: string): Promise<T | null> {
+export async function readJsonFile<T>(filePath: string): Promise<T | null> {
   try {
     const raw = await fs.readFile(filePath, 'utf8');
     return JSON.parse(raw) as T;
@@ -94,6 +98,11 @@ async function readJsonFile<T>(filePath: string): Promise<T | null> {
     if (e.code === 'ENOENT') return null;
     throw error;
   }
+}
+
+export async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
+  await ensureDataDir();
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
 export async function loadAccountsFromDisk() {

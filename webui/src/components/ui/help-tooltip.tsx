@@ -96,7 +96,7 @@ export function GuideStep({ step, title, description, icon, isCompleted, isActiv
         )}>
           {title}
         </h4>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        <p className="text-xs text-black mt-0.5">{description}</p>
       </div>
     </div>
   );
@@ -120,7 +120,7 @@ export function EmptyState({ icon = '📭', title, description, action }: EmptyS
     <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
       <div className="text-5xl mb-4">{icon}</div>
       <h3 className="text-lg font-medium text-foreground mb-2">{title}</h3>
-      <p className="text-sm text-muted-foreground mb-4 max-w-sm">{description}</p>
+      <p className="text-sm text-black mb-4 max-w-sm">{description}</p>
       {action && (
         <button
           onClick={action.onClick}

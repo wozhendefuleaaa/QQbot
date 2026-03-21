@@ -53,12 +53,12 @@ export function PluginCard({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-medium">{plugin.name}</span>
-              <span className="text-xs text-muted-foreground">v{plugin.version}</span>
+              <span className="text-xs text-black">v{plugin.version}</span>
               {plugin.author && (
-                <span className="text-xs text-muted-foreground">by {plugin.author}</span>
+                <span className="text-xs text-black">by {plugin.author}</span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground line-clamp-1">{plugin.description}</p>
+            <p className="text-sm text-black line-clamp-1">{plugin.description}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -71,9 +71,9 @@ export function PluginCard({
             </Badge>
           )}
           {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            <ChevronUp className="w-4 h-4 text-black" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            <ChevronDown className="w-4 h-4 text-black" />
           )}
         </div>
       </div>
@@ -120,7 +120,7 @@ export function PluginCard({
                   >
                     <div>
                       <code className="text-primary font-mono">/{cmd.name}</code>
-                      <span className="text-muted-foreground ml-2">{cmd.description}</span>
+                      <span className="text-black ml-2">{cmd.description}</span>
                     </div>
                     {cmd.permission && cmd.permission !== 'public' && (
                       <Badge variant="secondary" className="text-xs">

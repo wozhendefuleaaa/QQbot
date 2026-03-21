@@ -7,12 +7,27 @@
 export { connectGateway, disconnectGateway } from './gateway-core.js';
 
 // 消息发送功能
-export { 
-  trySendToQQ, 
-  recallMessage, 
-  uploadImage, 
-  sendImageMessage, 
-  recordMsgIdTimestamp 
+export {
+  trySendToQQ,
+  recallMessage,
+  uploadImage,
+  sendImageMessage,
+  recordMsgIdTimestamp,
+  sendMarkdownMessage,
+  sendArkMessage,
+  sendEmbedMessage,
+  sendKeyboardMessage,
+  sendMixedMessage,
+  QQ_MSG_TYPE
+} from './gateway-message.js';
+
+// 导出消息类型
+export type {
+  QQMarkdownPayload,
+  QQArkPayload,
+  QQEmbedPayload,
+  QQKeyboardPayload,
+  QQMessagePayload
 } from './gateway-message.js';
 
 // 群组管理功能

@@ -81,11 +81,11 @@ export function PluginUploadDialog({
           {filename && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
-                <FileCode className="w-4 h-4 text-muted-foreground" />
+                <FileCode className="w-4 h-4 text-black" />
                 <span className="font-medium">{filename}</span>
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">文件内容预览</label>
+                <label className="text-sm text-black">文件内容预览</label>
                 <pre className="p-3 rounded-md bg-muted text-xs overflow-auto max-h-60 border">
                   {content.slice(0, 2000)}
                   {content.length > 2000 && '\n... (内容已截断)'}

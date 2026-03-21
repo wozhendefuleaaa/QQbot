@@ -12,7 +12,8 @@ import {
   StatisticsSnapshot,
   SystemLog,
   QuickReply,
-  PluginPermissionMatrix
+  PluginPermissionMatrix,
+  YunzaiPermissionConfig
 } from '../types';
 
 // Query Keys
@@ -301,6 +302,18 @@ export function useToggleOpenApiToken() {
   });
 }
 
+export function useDeleteOpenApiToken() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (tokenId: string) =>
+      api(`/api/openapi/tokens/${tokenId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.openApiTokens });
+    },
+  });
+}
+
 // 快捷回复 hooks
 export function useQuickReplies() {
   return useQuery({
@@ -420,6 +433,81 @@ export function useBatchTogglePluginPermission() {
     },
     onSuccess: (_, { accountId }) => {
       queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    },
+  });
+}
+
+// 云崽权限配置相关
+const yunzaiPermissionKeys = {
+  all: ['yunzaiPermission'] as const,
+};
+
+// 获取云崽权限配置
+export function useYunzaiPermission() {
+  return useQuery({
+    queryKey: yunzaiPermissionKeys.all,
+    queryFn: () => api<YunzaiPermissionConfig>('/api/config/yunzai-permission'),
+  });
+}
+
+// 添加主人
+export function useAddYunzaiMaster() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api<{ ok: boolean; data: YunzaiPermissionConfig }>('/api/config/yunzai-permission/master', {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: yunzaiPermissionKeys.all });
+    },
+  });
+}
+
+// 删除主人
+export function useRemoveYunzaiMaster() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api<{ ok: boolean; data: YunzaiPermissionConfig }>(`/api/config/yunzai-permission/master/${userId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: yunzaiPermissionKeys.all });
+    },
+  });
+}
+
+// 添加管理员
+export function useAddYunzaiAdmin() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api<{ ok: boolean; data: YunzaiPermissionConfig }>('/api/config/yunzai-permission/admin', {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: yunzaiPermissionKeys.all });
+    },
+  });
+}
+
+// 删除管理员
+export function useRemoveYunzaiAdmin() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api<{ ok: boolean; data: YunzaiPermissionConfig }>(`/api/config/yunzai-permission/admin/${userId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: yunzaiPermissionKeys.all });
     },
   });
 }

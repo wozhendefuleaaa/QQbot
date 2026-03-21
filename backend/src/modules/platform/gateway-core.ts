@@ -18,7 +18,28 @@ import { parseInboundEvent, safePayloadSnippet, firstNonEmptyString } from './ga
 import { trySendToQQ, recordMsgIdTimestamp } from './gateway-message.js';
 
 // 导出消息相关函数
-export { trySendToQQ, recallMessage, uploadImage, sendImageMessage, recordMsgIdTimestamp } from './gateway-message.js';
+export {
+  trySendToQQ,
+  recallMessage,
+  uploadImage,
+  sendImageMessage,
+  recordMsgIdTimestamp,
+  sendMarkdownMessage,
+  sendArkMessage,
+  sendEmbedMessage,
+  sendKeyboardMessage,
+  sendMixedMessage,
+  QQ_MSG_TYPE
+} from './gateway-message.js';
+
+// 导出消息类型
+export type {
+  QQMarkdownPayload,
+  QQArkPayload,
+  QQEmbedPayload,
+  QQKeyboardPayload,
+  QQMessagePayload
+} from './gateway-message.js';
 
 // Gateway 运行时状态
 let gatewaySocket: WebSocket | null = null;

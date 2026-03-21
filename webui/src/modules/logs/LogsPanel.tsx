@@ -37,7 +37,7 @@ export function LogsPanel({ logs, logType, onChangeType, onRefresh }: Props) {
         <CardContent>
           <div className="bg-muted/50 rounded-lg p-4 max-h-[600px] overflow-auto font-mono text-sm">
             {logs.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">暂无日志</p>
+              <p className="text-black text-center py-8">暂无日志</p>
             ) : (
               <div className="space-y-2">
                 {logs.map((log) => (
@@ -46,11 +46,11 @@ export function LogsPanel({ logs, logType, onChangeType, onRefresh }: Props) {
                     className={`flex gap-2 ${
                       log.level === 'ERROR' ? 'text-destructive' :
                       log.level === 'WARN' ? 'text-yellow-600' :
-                      log.level === 'INFO' ? 'text-primary' : 'text-muted-foreground'
+                      log.level === 'INFO' ? 'text-primary' : 'text-black'
                     }`}
                   >
                     <span className="font-semibold">[{log.level}]</span>
-                    <span className="text-muted-foreground">{fmtTime(log.createdAt)}</span>
+                    <span className="text-black">{fmtTime(log.createdAt)}</span>
                     <span>
                       <span className="text-secondary-foreground">[{log.category}]</span> {log.message}
                     </span>

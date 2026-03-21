@@ -65,7 +65,7 @@ export function PlatformPanel({ platformStatus, platformLogs, onConnect, onDisco
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-muted-foreground">连接状态</span>
+                <span className="text-sm text-black">连接状态</span>
                 <HelpTooltip content="显示当前与 QQ 平台的连接状态" position="top" />
               </div>
               <div className="mt-1">
@@ -78,28 +78,28 @@ export function PlatformPanel({ platformStatus, platformLogs, onConnect, onDisco
             </div>
             <div className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-muted-foreground">已连接账号</span>
+                <span className="text-sm text-black">已连接账号</span>
                 <HelpTooltip content="当前连接的机器人账号名称" position="top" />
               </div>
               <p className="mt-1 font-medium">{platformStatus.connectedAccountName || '-'}</p>
             </div>
             <div className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-muted-foreground">最近连接时间</span>
+                <span className="text-sm text-black">最近连接时间</span>
                 <HelpTooltip content="上次成功连接的时间" position="top" />
               </div>
               <p className="mt-1 font-medium">{fmtTime(platformStatus.lastConnectedAt)}</p>
             </div>
             <div className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-muted-foreground">Token 过期时间</span>
+                <span className="text-sm text-black">Token 过期时间</span>
                 <HelpTooltip content="访问令牌的有效期限，过期后需重新连接" position="top" />
               </div>
               <p className="mt-1 font-medium">{fmtTime(platformStatus.tokenExpiresAt)}</p>
             </div>
             <div className="p-4 rounded-lg border bg-card md:col-span-2 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-muted-foreground">最近错误</span>
+                <span className="text-sm text-black">最近错误</span>
                 <HelpTooltip content="如果连接失败，这里会显示错误信息" position="top" />
               </div>
               <p className="mt-1 font-medium text-destructive">{platformStatus.lastError || '-'}</p>
@@ -132,11 +132,11 @@ export function PlatformPanel({ platformStatus, platformLogs, onConnect, onDisco
                     className={`flex gap-2 ${
                       log.level === 'ERROR' ? 'text-destructive' :
                       log.level === 'WARN' ? 'text-yellow-600' :
-                      log.level === 'INFO' ? 'text-primary' : 'text-muted-foreground'
+                      log.level === 'INFO' ? 'text-primary' : 'text-black'
                     }`}
                   >
                     <span className="font-semibold">[{log.level}]</span>
-                    <span className="text-muted-foreground">{fmtTime(log.createdAt)}</span>
+                    <span className="text-black">{fmtTime(log.createdAt)}</span>
                     <span>{log.message}</span>
                   </div>
                 ))}

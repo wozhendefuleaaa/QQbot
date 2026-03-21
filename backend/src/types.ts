@@ -114,7 +114,17 @@ export type AppConfig = {
   defaultIntent: number;
   // 插件权限矩阵配置 - 按机器人账号索引
   pluginPermissions: Record<string, PluginPermissionMatrix>;  // key: accountId
+  // 云崽权限配置
+  yunzaiPermission: YunzaiPermissionConfig;
   updatedAt: string;
+};
+
+// 云崽权限配置
+export type YunzaiPermissionConfig = {
+  /** 主人ID列表（最高权限） */
+  masterIds: string[];
+  /** 管理员ID列表 */
+  adminIds: string[];
 };
 
 export type OpenApiToken = {
@@ -149,6 +159,8 @@ export type User = {
   role: 'admin' | 'user';
   createdAt: string;
   lastLoginAt: string | null;
+  /** 是否需要强制修改密码（使用默认密码登录时为true） */
+  requirePasswordChange?: boolean;
 };
 
 export type UserWithPassword = User & {

@@ -45,6 +45,23 @@
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   }
   
+  /* 移动端安全区域适配 */
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+  
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .safe-area-inset-left {
+    padding-left: env(safe-area-inset-left, 0);
+  }
+  
+  .safe-area-inset-right {
+    padding-right: env(safe-area-inset-right, 0);
+  }
+  
   .dark {
     /* 主背景 - 使用深蓝灰色，比纯黑更柔和 */
     --color-background: hsl(220 20% 10%);
@@ -68,7 +85,7 @@
     
     /* 静音色 - 用于背景装饰和禁用状态 */
     --color-muted: hsl(220 15% 18%);
-    --color-muted-foreground: hsl(220 12% 55%);
+    --color-muted-foreground: hsl(220 12% 65%);
     
     /* 强调色 - 用于悬停和选中状态 */
     --color-accent: hsl(215 25% 25%);
@@ -86,6 +103,32 @@
     
     /* 焦点环 - 与主色调协调 */
     --color-ring: hsl(215 65% 55%);
+  }
+  
+  /* 深色模式下 text-black 自动转换为浅色 */
+  .dark .text-black {
+    color: var(--color-foreground) !important;
+  }
+  
+  .dark .text-gray-700,
+  .dark .text-gray-800,
+  .dark .text-gray-900 {
+    color: var(--color-foreground) !important;
+  }
+  
+  .dark .text-gray-500,
+  .dark .text-gray-600 {
+    color: var(--color-muted-foreground) !important;
+  }
+  
+  .dark .text-gray-400 {
+    color: hsl(220 10% 60%) !important;
+  }
+  
+  /* 深色模式下 placeholder 也需要调整 */
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: var(--color-muted-foreground) !important;
   }
 }
 
@@ -251,6 +294,314 @@
     ::-webkit-scrollbar {
       width: 4px;
       height: 4px;
+    }
+  }
+}
+
+/* 移动端安全区域支持 */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* 移动端底部导航动画 */
+@keyframes slide-up-modal {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-overlay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  .animate-slide-up-modal {
+    animation: slide-up-modal 0.3s ease-out forwards;
+  }
+  
+  .animate-fade-in-overlay {
+    animation: fade-in-overlay 0.2s ease-out forwards;
+  }
+}
+
+/* 移动端触摸优化 */
+@layer base {
+  @media (max-width: 768px) {
+    /* 增大触摸目标 */
+    button, 
+    [role="button"],
+    a,
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    /* 小按钮例外 */
+    button.btn-sm,
+    button.text-xs,
+    .btn-icon {
+      min-height: auto;
+      min-width: auto;
+    }
+    
+    /* 禁用文本选择（防止误选） */
+    .no-select {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    /* 优化输入框 */
+    input, textarea, select {
+      font-size: 16px; /* 防止 iOS 缩放 */
+    }
+    
+    /* 移动端卡片优化 */
+    .card-mobile {
+      border-radius: 12px;
+      margin: 8px;
+      padding: 12px;
+    }
+    
+    /* 移动端列表项优化 */
+    .list-item-mobile {
+      padding: 12px 16px;
+      min-height: 48px;
+    }
+  }
+}
+
+/* 移动端底部导航样式 */
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background-color: var(--color-background);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100%;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: colors 0.15s;
+}
+
+.mobile-nav-item-active {
+  color: var(--color-primary);
+}
+
+.mobile-nav-item-inactive {
+  color: var(--color-muted-foreground);
+}
+
+/* 移动端头部样式 */
+.mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+/* 移动端内容区域优化 */
+@layer base {
+  @media (max-width: 768px) {
+    .mobile-content {
+      padding: 0.5rem 0.75rem;
+    }
+    
+    /* 移动端表格优化 */
+    .mobile-table {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* 移动端表单优化 */
+    .mobile-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .mobile-form-input {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+    
+    /* 移动端按钮组 */
+    .mobile-button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    /* 移动端隐藏滚动条但保持滚动功能 */
+    .mobile-scroll-hidden {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    .mobile-scroll-hidden::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+/* 移动端对话框优化 */
+@layer components {
+  @media (max-width: 768px) {
+    .mobile-dialog {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      top: auto;
+      border-radius: 1rem 1rem 0 0;
+      max-height: 85vh;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    
+    .mobile-dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      animation: fade-in-overlay 0.2s ease-out forwards;
+    }
+    
+    .mobile-dialog-content {
+      animation: slide-up-modal 0.3s ease-out forwards;
+    }
+  }
+}
+
+/* 移动端状态栏样式 */
+.mobile-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background-color: var(--color-muted);
+  opacity: 0.3;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.75rem;
+}
+
+/* 移动端卡片网格 */
+@layer components {
+  @media (max-width: 768px) {
+    .mobile-card-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+      padding: 0.75rem;
+    }
+    
+    .mobile-card-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      padding: 0.75rem;
+    }
+  }
+}
+
+/* 移动端标签页优化 */
+@layer components {
+  @media (max-width: 768px) {
+    .mobile-tabs {
+      display: flex;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--color-border);
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .mobile-tabs::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .mobile-tab {
+      flex-shrink: 0;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    
+    .mobile-tab-active {
+      border-bottom: 2px solid var(--color-primary);
+      color: var(--color-primary);
+    }
+    
+    .mobile-tab-inactive {
+      color: var(--color-muted-foreground);
+    }
+  }
+}
+
+/* 移动端消息气泡优化 */
+@layer components {
+  @media (max-width: 768px) {
+    .mobile-message-bubble {
+      max-width: 85%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 1rem;
+    }
+    
+    .mobile-message-bubble-sent {
+      background-color: var(--color-primary);
+      color: var(--color-primary-foreground);
+      border-bottom-right-radius: 0.25rem;
+    }
+    
+    .mobile-message-bubble-received {
+      background-color: var(--color-muted);
+      border-bottom-left-radius: 0.25rem;
+    }
+  }
+}
+
+/* 移动端输入框固定在底部 */
+@layer components {
+  @media (max-width: 768px) {
+    .mobile-input-fixed {
+      position: fixed;
+      bottom: 3.5rem;
+      left: 0;
+      right: 0;
+      background-color: var(--color-background);
+      border-top: 1px solid var(--color-border);
+      padding: 0.5rem;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
   }
 }

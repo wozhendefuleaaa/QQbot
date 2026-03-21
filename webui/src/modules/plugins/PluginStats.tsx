@@ -14,7 +14,7 @@ export function PluginStats({ total, enabled, loaded }: PluginStatsProps) {
           <Package className="w-5 h-5 text-blue-500" />
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">总插件数</p>
+          <p className="text-sm text-black">总插件数</p>
           <p className="text-2xl font-semibold">{total}</p>
         </div>
       </div>
@@ -23,7 +23,7 @@ export function PluginStats({ total, enabled, loaded }: PluginStatsProps) {
           <Power className="w-5 h-5 text-green-500" />
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">已启用</p>
+          <p className="text-sm text-black">已启用</p>
           <p className="text-2xl font-semibold">{enabled}</p>
         </div>
       </div>
@@ -32,7 +32,7 @@ export function PluginStats({ total, enabled, loaded }: PluginStatsProps) {
           <Terminal className="w-5 h-5 text-purple-500" />
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">已加载</p>
+          <p className="text-sm text-black">已加载</p>
           <p className="text-2xl font-semibold">{loaded}</p>
         </div>
       </div>

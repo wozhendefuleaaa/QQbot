@@ -84,6 +84,12 @@ export type PluginPermissionMatrix = {
   disabledPlugins: Record<string, string[]>;  // key: groupId, value: 禁用的插件ID列表
 };
 
+// 云崽权限配置
+export type YunzaiPermissionConfig = {
+  masterIds: string[];   // 主人ID列表
+  adminIds: string[];    // 管理员ID列表
+};
+
 export type AppConfig = {
   webName: string;
   notice: string;
@@ -91,6 +97,8 @@ export type AppConfig = {
   defaultIntent: number;
   // 插件权限矩阵配置 - 按机器人账号索引
   pluginPermissions: Record<string, PluginPermissionMatrix>;  // key: accountId
+  // 云崽权限配置
+  yunzaiPermission?: YunzaiPermissionConfig;
   updatedAt: string;
 };
 
@@ -170,6 +178,8 @@ export type User = {
   role: 'admin' | 'user';
   createdAt: string;
   lastLoginAt: string | null;
+  /** 是否需要强制修改密码 */
+  requirePasswordChange?: boolean;
 };
 
 export type LoginRequest = {
