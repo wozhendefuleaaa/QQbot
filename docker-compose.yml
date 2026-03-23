@@ -1,4 +1,3 @@
-version: '3.9'
 services:
   mysql:
     image: mysql:8.4
@@ -12,6 +11,11 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7.4
@@ -20,34 +24,49 @@ services:
       - "6380:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  backend:
-    image: node:20-alpine
-    container_name: qqbot-backend
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -w backend"
+  # QQBot Platform - 统一服务（同时运行 backend + webui）
+  qqbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qqbot-platform
     env_file:
       - .env
-    volumes:
-      - ./:/app
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=qqbot
+      - DB_PASSWORD=qqbot
+      - DB_NAME=qqbot
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     ports:
-      - "3001:3000"
-    depends_on:
-      - mysql
-      - redis
-
-  webui:
-    image: node:20-alpine
-    container_name: qqbot-webui
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -w webui -- --host 0.0.0.0 --port 5173"
+      - "3000:3000"   # 后端 API
+      - "5173:5173"   # 前端界面
     volumes:
-      - ./:/app
-    ports:
-      - "5173:5173"
+      # 插件目录持久化
+      - ./backend/plugins:/app/backend/plugins
+      - ./backend/src/plugins:/app/backend/src/plugins
+      # 数据库文件（可选，用于 SQLite）
+      - qqbot_data:/app/data
+      # 日志持久化
+      - qqbot_logs:/app/logs
     depends_on:
-      - backend
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   mysql_data:
   redis_data:
+  qqbot_data:
+  qqbot_logs:

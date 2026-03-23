@@ -10,6 +10,9 @@
     "dev": "npm run dev -w backend",
     "dev:backend": "npm run dev -w backend",
     "dev:webui": "npm run dev -w webui",
-    "build": "npm run build -w backend && npm run build -w webui"
+    "dev:all": "concurrently \"npm run dev -w backend\" \"npm run dev -w webui\"",
+    "build": "npm run build -w backend && npm run build -w webui",
+    "start": "node backend/dist/index.js",
+    "start:webui": "serve webui/dist -l 5173"
   }
 }
