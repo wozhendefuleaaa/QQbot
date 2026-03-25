@@ -1,0 +1,20 @@
+{
+  "name": "weather-query",
+  "version": "1.0.0",
+  "description": "天气查询插件，支持查询全国各城市实时天气和预报",
+  "main": "index.js",
+  "author": "weather-dev",
+  "license": "MIT",
+  "keywords": ["天气", "天气预报", "查询", "wawa-plugin"],
+  "wawa": {
+    "name": "天气查询",
+    "version": "1.0.0",
+    "description": "天气查询插件，支持查询全国各城市实时天气和预报",
+    "author": "weather-dev",
+    "commands": [
+      { "command": "#天气", "description": "查询城市天气" },
+      { "command": "#天气预报", "description": "查询城市未来天气" },
+      { "command": "#空气质量", "description": "查询城市空气质量" }
+    ]
+  }
+}

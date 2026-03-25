@@ -109,18 +109,21 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
 
         if (response.ok) {
           const data = await response.json();
-          const progress = data.data || data;
-          setInstallProgress(progress);
+          // 只有当 data.data 存在时才更新进度（后端返回 {success: true, data: null} 表示还没有进度）
+          const progress = data.data;
+          if (progress) {
+            setInstallProgress(progress);
 
-          if (progress.status === 'completed' || progress.status === 'failed') {
-            if (progress.status === 'completed') {
-              setTimeout(() => {
-                setShowInstallDialog(false);
-                setInstallingPlugin(null);
-                setInstallProgress(null);
-                onInstallComplete();
-                fetchMarketPlugins();
-              }, 1500);
+            if (progress.status === 'completed' || progress.status === 'failed') {
+              if (progress.status === 'completed') {
+                setTimeout(() => {
+                  setShowInstallDialog(false);
+                  setInstallingPlugin(null);
+                  setInstallProgress(null);
+                  onInstallComplete();
+                  fetchMarketPlugins();
+                }, 1500);
+              }
             }
           }
         }
