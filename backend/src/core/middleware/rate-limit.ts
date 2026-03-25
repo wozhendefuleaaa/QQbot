@@ -96,8 +96,10 @@ export function createApiRateLimiter() {
     windowMs: 60 * 1000, // 1 分钟
     max: 120, // 每分钟 120 次
     skip: (req: Request) => {
-      // 健康检查接口跳过限制
-      return req.path === '/health' || req.path === '/ready';
+      // 健康检查接口和安装进度轮询接口跳过限制
+      return req.path === '/health' ||
+             req.path === '/ready' ||
+             req.path.startsWith('/api/plugins/market/install/progress/');
     }
   });
 }

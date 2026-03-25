@@ -94,6 +94,11 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
   useEffect(() => {
     if (!installingPlugin || !showInstallDialog) return;
 
+    // 如果已经完成或失败，停止轮询
+    if (installProgress && (installProgress.status === 'completed' || installProgress.status === 'failed')) {
+      return;
+    }
+
     const pollProgress = async () => {
       try {
         const response = await fetch(`/api/plugins/market/install/progress/${installingPlugin.id}`, {
@@ -103,7 +108,8 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
         });
 
         if (response.ok) {
-          const progress: InstallProgress = await response.json();
+          const data = await response.json();
+          const progress = data.data || data;
           setInstallProgress(progress);
 
           if (progress.status === 'completed' || progress.status === 'failed') {
@@ -123,9 +129,10 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
       }
     };
 
-    const interval = setInterval(pollProgress, 500);
+    // 轮询间隔改为 1000ms，避免触发 rate limiter
+    const interval = setInterval(pollProgress, 1000);
     return () => clearInterval(interval);
-  }, [installingPlugin, showInstallDialog, onInstallComplete, fetchMarketPlugins]);
+  }, [installingPlugin, showInstallDialog, installProgress, onInstallComplete, fetchMarketPlugins]);
 
   // 开始安装插件
   const handleInstall = async (plugin: MarketPlugin) => {
