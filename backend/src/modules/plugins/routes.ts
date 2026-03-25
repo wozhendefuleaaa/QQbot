@@ -8,19 +8,18 @@ import {
   reloadPlugin,
   unloadPlugin,
   getPluginConfig,
-  updatePluginConfig
+  updatePluginConfig,
+  getPluginsDir
 } from '../../core/plugin-manager.js';
 import fs from 'fs';
 import path from 'path';
-
-// 插件文件目录
-const PLUGINS_DIR = path.join(process.cwd(), 'src', 'plugins');
 
 export function registerPluginRoutes(app: Express) {
   // 获取插件源码
   app.get('/api/plugins/:id/source', async (req, res) => {
     try {
       const pluginId = req.params.id;
+      const PLUGINS_DIR = getPluginsDir();
       
       // 处理云崽插件的特殊ID格式（如 test-yunzai-plugins-0, test-yunzai-plugins-1 等）
       // 这些插件来自同一个文件，需要提取原始文件名
@@ -60,19 +59,20 @@ export function registerPluginRoutes(app: Express) {
   app.post('/api/plugins/upload', async (req, res) => {
     try {
       const { filename, content } = req.body as { filename?: string; content?: string };
-      
+      const PLUGINS_DIR = getPluginsDir();
+
       if (!filename || !content) {
         res.status(400).json({ error: 'filename 和 content 为必填项' });
         return;
       }
-      
+
       // 安全检查：防止路径遍历攻击
       const safeName = path.basename(filename).replace(/\.\.+/g, '');
       if (!safeName.endsWith('.ts') && !safeName.endsWith('.js')) {
         res.status(400).json({ error: '只支持 .ts 或 .js 文件' });
         return;
       }
-      
+
       const filePath = path.join(PLUGINS_DIR, safeName);
       
       // 检查是否已存在
@@ -130,12 +130,13 @@ export function registerPluginRoutes(app: Express) {
   app.put('/api/plugins/:id/source', async (req, res) => {
     try {
       const { content } = req.body as { content?: string };
-      
+      const PLUGINS_DIR = getPluginsDir();
+
       if (!content) {
         res.status(400).json({ error: 'content 为必填项' });
         return;
       }
-      
+
       const pluginId = req.params.id;
       const tsFile = path.join(PLUGINS_DIR, `${pluginId}.ts`);
       const jsFile = path.join(PLUGINS_DIR, `${pluginId}.js`);
@@ -163,14 +164,16 @@ export function registerPluginRoutes(app: Express) {
   app.get('/api/plugins', (_req, res) => {
     const loaded = getLoadedPlugins();
     const loadedMap = new Map(loaded.map(p => [p.id, p]));
+    const registeredMap = new Map(plugins.map(p => [p.id, p]));
     
+    // 首先处理已注册的插件（来自 plugins.json）
     const mergedPlugins = plugins.map(p => {
       const loadedPlugin = loadedMap.get(p.id);
       return {
         ...p,
         loaded: !!loadedPlugin,
-        author: loadedPlugin?.author,
-        priority: loadedPlugin?.priority,
+        author: loadedPlugin?.author ?? p.author,
+        priority: loadedPlugin?.priority ?? p.priority,
         hasOnMessage: !!loadedPlugin?.onMessage,
         hasCronJobs: !!(loadedPlugin?.cronJobs && loadedPlugin.cronJobs.length > 0),
         commands: loadedPlugin?.commands?.map(cmd => ({
@@ -181,6 +184,31 @@ export function registerPluginRoutes(app: Express) {
         }))
       };
     });
+    
+    // 添加已加载但未注册的插件（来自文件系统扫描）
+    for (const loadedPlugin of loaded) {
+      if (!registeredMap.has(loadedPlugin.id)) {
+        mergedPlugins.push({
+          id: loadedPlugin.id,
+          name: loadedPlugin.name,
+          enabled: loadedPlugin.enabled,
+          version: loadedPlugin.version,
+          description: loadedPlugin.description,
+          author: loadedPlugin.author,
+          priority: loadedPlugin.priority,
+          loaded: true,
+          hasOnMessage: !!loadedPlugin.onMessage,
+          hasCronJobs: !!(loadedPlugin.cronJobs && loadedPlugin.cronJobs.length > 0),
+          commands: loadedPlugin.commands?.map(cmd => ({
+            name: cmd.name,
+            description: cmd.description,
+            usage: cmd.usage,
+            permission: cmd.permission
+          })),
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
     
     res.json({ items: mergedPlugins });
   });

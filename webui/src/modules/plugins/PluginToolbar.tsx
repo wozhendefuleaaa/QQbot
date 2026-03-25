@@ -25,7 +25,7 @@ export function PluginToolbar({
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <div className="flex gap-2 w-full sm:w-auto">
         <div className="relative flex-1 sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="搜索插件..."
             value={searchQuery}

@@ -31,6 +31,7 @@ import { registerGroupRoutes } from '../modules/group/routes.js';
 import { registerExternalApiRoutes } from '../modules/external/routes.js';
 import { registerSseRoutes } from '../modules/sse/routes.js';
 import { registerAuthRoutes } from '../modules/auth/routes.js';
+import { registerMarketRoutes } from '../modules/market/routes.js';
 import { initializeDefaultAdmin } from './auth.js';
 import { createApiRateLimiter, errorHandler, notFoundHandler, authMiddleware } from './middleware/index.js';
 
@@ -137,6 +138,9 @@ registerExternalApiRoutes(app);
 
 // SSE 路由（无需 JWT 认证，使用独立的认证机制）
 registerSseRoutes(app);
+
+// 插件市场路由（公开接口，不需要认证）
+registerMarketRoutes(app);
 
 // 以下路由需要 JWT 认证保护
 app.use('/api', authMiddleware);

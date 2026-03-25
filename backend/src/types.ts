@@ -74,7 +74,7 @@ export type PlatformStatus = {
 export type SystemLog = {
   id: string;
   level: LogLevel;
-  category: 'framework' | 'plugin' | 'openapi' | 'config';
+  category: 'framework' | 'plugin' | 'openapi' | 'config' | 'market';
   message: string;
   createdAt: string;
 };

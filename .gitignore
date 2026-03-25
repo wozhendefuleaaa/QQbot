@@ -31,3 +31,15 @@ __tests__/
 
 # data files
 backend/data/
+*.db
+*.db-shm
+*.db-wal
+
+# runtime files
+backend/src/plugins/.runtime/
+
+# test plugins (separate repos)
+test-plugins/
+
+# embedded git repos
+backend/plugins/wawa-plugin/

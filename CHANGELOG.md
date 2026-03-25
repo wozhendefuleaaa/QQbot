@@ -1,5 +1,73 @@
 # 更新日志 (Changelog)
 
+## [1.12.0] - 2026-03-24
+
+### 新增
+
+#### 🏪 插件市场功能
+
+- **插件市场核心功能** - 完整的插件市场系统，支持从远程仓库获取插件列表并一键安装
+  - 新增 [`backend/src/modules/market/routes.ts`](backend/src/modules/market/routes.ts) - 插件市场后端路由
+    - `GET /api/plugins/market/list` - 获取市场插件列表
+    - `POST /api/plugins/market/install` - 安装市场插件
+    - `GET /api/plugins/market/progress/:pluginId` - 查询安装进度
+    - 多源支持：支持配置多个远程索引源，按优先级尝试
+    - 本地缓存：5分钟 TTL 缓存机制
+    - 后备索引：远程源不可用时使用本地示例索引
+    
+  - 新增 [`webui/src/modules/plugins/PluginMarketTab.tsx`](webui/src/modules/plugins/PluginMarketTab.tsx) - 插件市场标签页组件
+    - 插件搜索与分类筛选
+    - 刷新缓存功能
+    - 安装进度轮询
+    
+  - 新增 [`webui/src/modules/plugins/PluginMarketCard.tsx`](webui/src/modules/plugins/PluginMarketCard.tsx) - 市场插件卡片组件
+    - 插件信息展示（名称、作者、描述、标签）
+    - 星标数和下载量显示
+    - 云崽兼容标识
+    - 已安装状态检测
+    
+  - 新增 [`webui/src/modules/plugins/PluginInstallDialog.tsx`](webui/src/modules/plugins/PluginInstallDialog.tsx) - 安装进度对话框
+    - 实时安装状态显示（下载中→解压中→安装依赖→加载中→完成）
+    - 进度条可视化
+    - 错误信息展示
+
+- **类型扩展**
+  - 在 [`backend/src/types.ts`](backend/src/types.ts) 中添加 `market` 日志分类
+  - 在 [`webui/src/types.ts`](webui/src/types.ts) 中添加 `MarketPlugin`、`MarketIndex`、`InstallProgress` 类型定义
+
+### 改进
+
+- **插件管理面板** - 集成插件市场标签页
+  - 修改 [`webui/src/modules/plugins/PluginsPanel.tsx`](webui/src/modules/plugins/PluginsPanel.tsx)
+  - 新增标签导航（已安装插件 / 插件市场）
+  - 显示已安装插件数量徽章
+
+### 技术细节
+
+- 安装流程支持 ZIP 文件下载、解压、依赖安装、热加载
+- 完善的错误处理和日志记录
+- 前端构建成功，无 TypeScript 错误
+- 创建 Gitee 插件市场仓库 [qqbot-plugin-market](https://gitee.com/feixingwa/qqbot-plugin-market)
+- 创建测试插件仓库：
+  - [wawa-plugin-ai-chat](https://gitee.com/feixingwa/wawa-plugin-ai-chat) - AI 对话插件
+  - [wawa-plugin-music-player](https://gitee.com/feixingwa/wawa-plugin-music-player) - 音乐播放插件
+  - [wawa-plugin-group-manage](https://gitee.com/feixingwa/wawa-plugin-group-manage) - 群管理助手插件
+  - [wawa-plugin-weather-query](https://gitee.com/feixingwa/wawa-plugin-weather-query) - 天气查询插件
+  - [wawa-plugin-image-search](https://gitee.com/feixingwa/wawa-plugin-image-search) - 搜图插件
+
+## [1.11.1] - 2026-03-22
+
+### 修复
+
+- **Python 插件 Plugin 导入错误** - 在 [`python-adapter.ts`](backend/src/core/python-adapter.ts) 的嵌入式 Python 运行时脚本中添加 `Plugin = PythonPlugin` 别名，解决 `cannot import name 'Plugin' from 'plugin_runtime'` 错误
+- **plugin is not defined 错误** - 在 [`yunzai/index.ts`](backend/src/core/yunzai/index.ts) 中注入全局 `plugin` 变量
+- **redis is not defined 错误** - 在 [`yunzai/index.ts`](backend/src/core/yunzai/index.ts) 中添加 redis mock 实现，支持内存存储
+- **help-plugin.js 语法错误** - 删除无效的 help-plugin.js 文件
+
+### 依赖
+
+- 安装缺失的依赖包：chalk, yaml, node-fetch, puppeteer, moment, lodash, oicq
+
 ## [1.11.0] - 2026-03-21
 
 ### 重构

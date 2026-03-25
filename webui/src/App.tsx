@@ -669,6 +669,7 @@ function App() {
             snapshot={snapshot}
             plugins={plugins}
             config={config}
+            onNavigate={setActiveMenu}
           />
         )}
 

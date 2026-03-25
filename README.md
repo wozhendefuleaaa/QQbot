@@ -8,6 +8,7 @@
 - 🤖 **多账号管理** - 支持添加、管理多个 QQ 机器人账号
 - 💬 **消息收发** - 支持私聊、群聊消息的收发与历史记录
 - 🔌 **插件系统** - 支持热加载、命令系统、权限控制
+- 🏪 **插件市场** - 在线浏览、一键安装社区插件
 - 🔗 **第三方集成** - 提供 RESTful API 供外部系统调用
 - 🔐 **JWT 认证** - 安全的用户认证与权限管理
 - 📱 **移动端适配** - 响应式设计，完美支持手机端访问
@@ -112,7 +113,11 @@ docker compose up -d
 - **日志中心** - 系统日志、平台日志
 - **统计中心** - 消息统计、活跃度分析
 - **开放 API** - 管理 API Token
-- **插件中心** - 管理插件
+- **插件中心** - 管理插件、浏览插件市场
+  - 插件市场：在线浏览社区插件
+  - 一键安装：自动下载、解压、加载
+  - 插件卡片：展示插件信息、分类、标签
+  - 安装进度：实时显示安装状态
 
 ### 移动端
 - **底部导航栏** - 5个主要功能入口（首页、聊天、平台、插件、更多）
@@ -339,6 +344,38 @@ curl -X POST http://localhost:3000/api/plugins/my-plugin/reload
 ## 更新日志
 
 查看 [CHANGELOG.md](CHANGELOG.md) 获取完整的更新历史。
+
+### v1.2.0 (2026-03-25)
+
+#### 新增功能
+- 🏪 **插件市场** - 在线插件市场系统
+  - 浏览社区插件，支持分类筛选和搜索
+  - 一键安装插件，自动下载、解压、加载
+  - 实时安装进度显示
+  - 插件卡片展示详细信息（作者、版本、标签等）
+  - 支持云崽兼容插件标识
+
+#### 后端更改
+- 新增 [`backend/src/modules/market/routes.ts`](backend/src/modules/market/routes.ts) - 插件市场路由
+  - `GET /api/plugins/market/list` - 获取市场插件列表
+  - `GET /api/plugins/market/:id` - 获取插件详情
+  - `POST /api/plugins/market/install` - 安装插件
+  - `GET /api/plugins/market/install/progress/:id` - 获取安装进度
+  - `GET /api/plugins/market/check-updates` - 检查插件更新
+  - `POST /api/plugins/market/refresh` - 刷新市场索引
+
+#### 前端更改
+- 新增 [`webui/src/modules/plugins/PluginMarketTab.tsx`](webui/src/modules/plugins/PluginMarketTab.tsx) - 市场标签页
+- 新增 [`webui/src/modules/plugins/PluginMarketCard.tsx`](webui/src/modules/plugins/PluginMarketCard.tsx) - 插件卡片组件
+- 新增 [`webui/src/modules/plugins/PluginInstallDialog.tsx`](webui/src/modules/plugins/PluginInstallDialog.tsx) - 安装进度对话框
+- 更新 [`webui/src/modules/plugins/PluginsPanel.tsx`](webui/src/modules/plugins/PluginsPanel.tsx) - 集成市场标签页
+
+#### 测试插件仓库
+- [wawa-plugin-ai-chat](https://gitee.com/feixingwa/wawa-plugin-ai-chat) - AI 对话插件
+- [wawa-plugin-music-player](https://gitee.com/feixingwa/wawa-plugin-music-player) - 音乐播放插件
+- [wawa-plugin-group-manage](https://gitee.com/feixingwa/wawa-plugin-group-manage) - 群管理助手插件
+- [wawa-plugin-weather-query](https://gitee.com/feixingwa/wawa-plugin-weather-query) - 天气查询插件
+- [wawa-plugin-image-search](https://gitee.com/feixingwa/wawa-plugin-image-search) - 搜图插件
 
 ### v1.1.0 (2026-03-14)
 

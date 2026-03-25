@@ -217,6 +217,9 @@ def set_plugin(plugin: PythonPlugin):
     global _plugin_instance
     _plugin_instance = plugin
 
+# 别名，方便导入
+Plugin = PythonPlugin
+
 class MessageHandler:
     """处理与宿主的通信"""
     

@@ -198,3 +198,36 @@ export type AuthStatus = {
   authenticated: boolean;
   user: User | null;
 };
+
+// 插件市场类型
+export type MarketPlugin = {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  repository: string;
+  downloadUrl: string;
+  category: string;
+  tags: string[];
+  yunzaiCompatible: boolean;
+  homepage?: string;
+  updatedAt: string;
+  stars?: number;
+  downloads?: number;
+  installed?: boolean;
+};
+
+export type MarketIndex = {
+  version: string;
+  updatedAt: string;
+  plugins: MarketPlugin[];
+};
+
+export type InstallProgress = {
+  pluginId: string;
+  status: 'downloading' | 'extracting' | 'installing' | 'loading' | 'completed' | 'failed';
+  progress: number;
+  message: string;
+  error?: string;
+};

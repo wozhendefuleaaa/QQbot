@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PluginInfo, PluginConfig } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Package, Upload, Plus } from 'lucide-react';
+import { Package, Upload, Plus, Store, Puzzle } from 'lucide-react';
 import { PluginStats } from './PluginStats';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginCard } from './PluginCard';
@@ -9,8 +9,10 @@ import { PluginDetailDialog } from './PluginDetailDialog';
 import { PluginConfigDialog } from './PluginConfigDialog';
 import { PluginUploadDialog } from './PluginUploadDialog';
 import { PluginCodeEditor } from './PluginCodeEditor';
+import { PluginMarketTab } from './PluginMarketTab';
 import { Button } from '@/components/ui/button';
 import { QuickTips, EmptyState } from '@/components/ui/help-tooltip';
+import { cn } from '@/lib/utils';
 
 type Props = {
   plugins: PluginInfo[];
@@ -76,6 +78,9 @@ export function PluginsPanel({
   onLoadPluginSource,
   onSavePluginSource,
 }: Props) {
+  // 标签页状态
+  const [activeTab, setActiveTab] = useState<'installed' | 'market'>('installed');
+
   // 搜索和筛选状态
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
@@ -204,77 +209,125 @@ export function PluginsPanel({
 
   return (
     <div className="flex-1 p-6 space-y-6 overflow-auto">
-      {/* 新手引导 */}
-      {plugins.length === 0 && (
-        <QuickTips
-          tips={[
-            '插件可以扩展机器人的功能，如自动回复、命令处理等',
-            '点击「新建插件」可以从模板开始创建自己的插件',
-            '也可以「上传插件」导入已有的插件文件（.js 或 .ts）',
-            '启用插件后，机器人会自动加载插件的功能'
-          ]}
-          title="🧩 插件使用指南"
+      {/* 标签页切换 */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setActiveTab('installed')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'installed'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+          )}
+        >
+          <Puzzle className="w-4 h-4" />
+          已安装插件
+          <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700">
+            {plugins.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('market')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'market'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+          )}
+        >
+          <Store className="w-4 h-4" />
+          插件市场
+        </button>
+      </div>
+
+      {/* 插件市场标签页 */}
+      {activeTab === 'market' && (
+        <PluginMarketTab
+          installedPluginIds={plugins.map(p => p.id)}
+          onInstallComplete={() => {
+            // 刷新插件列表 - 可以通过重新加载页面或调用父组件回调
+            window.location.reload();
+          }}
         />
       )}
 
-      {/* 统计卡片 */}
-      <PluginStats total={stats.total} enabled={stats.enabled} loaded={stats.loaded} />
-
-      {/* 工具栏 */}
-      <PluginToolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        filterStatus={filterStatus}
-        onFilterChange={setFilterStatus}
-        onOpenConfig={() => setShowConfig(true)}
-        onOpenUpload={() => setShowUploadDialog(true)}
-        onCreateNew={createNewPlugin}
-      />
-
-      {/* 插件列表 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">插件列表</CardTitle>
-          <CardDescription>
-            管理已安装的插件（共 {filteredPlugins.length} 个
-            {searchQuery || filterStatus !== 'all' ? `，筛选自 ${plugins.length} 个` : ''}）
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {filteredPlugins.length === 0 ? (
-            plugins.length === 0 ? (
-              <EmptyState
-                icon="🧩"
-                title="还没有安装插件"
-                description="插件可以扩展机器人的功能。创建一个新插件或上传已有的插件文件开始使用。"
-              />
-            ) : (
-              <EmptyState
-                icon="🔍"
-                title="没有找到匹配的插件"
-                description="尝试修改搜索关键词或筛选条件"
-              />
-            )
-          ) : (
-            <div className="space-y-3">
-              {filteredPlugins.map((p) => (
-                <PluginCard
-                  key={p.id}
-                  plugin={p}
-                  isExpanded={expandedPlugins.has(p.id)}
-                  isReloading={reloading === p.id}
-                  onToggleExpand={() => toggleExpand(p.id)}
-                  onToggle={() => onTogglePlugin(p.id)}
-                  onReload={() => handleReload(p.id)}
-                  onEdit={() => openEditor(p)}
-                  onShowDetail={() => setSelectedPlugin(p)}
-                  onDelete={() => onDeletePlugin(p.id)}
-                />
-              ))}
-            </div>
+      {/* 已安装插件标签页 */}
+      {activeTab === 'installed' && (
+        <>
+          {/* 新手引导 */}
+          {plugins.length === 0 && (
+            <QuickTips
+              tips={[
+                '插件可以扩展机器人的功能，如自动回复、命令处理等',
+                '点击「新建插件」可以从模板开始创建自己的插件',
+                '也可以「上传插件」导入已有的插件文件（.js 或 .ts）',
+                '启用插件后，机器人会自动加载插件的功能',
+                '切换到「插件市场」标签页可以发现更多精彩插件'
+              ]}
+              title="🧩 插件使用指南"
+            />
           )}
-        </CardContent>
-      </Card>
+
+          {/* 统计卡片 */}
+          <PluginStats total={stats.total} enabled={stats.enabled} loaded={stats.loaded} />
+
+          {/* 工具栏 */}
+          <PluginToolbar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            filterStatus={filterStatus}
+            onFilterChange={setFilterStatus}
+            onOpenConfig={() => setShowConfig(true)}
+            onOpenUpload={() => setShowUploadDialog(true)}
+            onCreateNew={createNewPlugin}
+          />
+
+          {/* 插件列表 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">插件列表</CardTitle>
+              <CardDescription>
+                管理已安装的插件（共 {filteredPlugins.length} 个
+                {searchQuery || filterStatus !== 'all' ? `，筛选自 ${plugins.length} 个` : ''}）
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredPlugins.length === 0 ? (
+                plugins.length === 0 ? (
+                  <EmptyState
+                    icon="🧩"
+                    title="还没有安装插件"
+                    description="插件可以扩展机器人的功能。切换到「插件市场」发现更多精彩插件，或创建一个新插件开始使用。"
+                  />
+                ) : (
+                  <EmptyState
+                    icon="🔍"
+                    title="没有找到匹配的插件"
+                    description="尝试修改搜索关键词或筛选条件"
+                  />
+                )
+              ) : (
+                <div className="space-y-3">
+                  {filteredPlugins.map((p) => (
+                    <PluginCard
+                      key={p.id}
+                      plugin={p}
+                      isExpanded={expandedPlugins.has(p.id)}
+                      isReloading={reloading === p.id}
+                      onToggleExpand={() => toggleExpand(p.id)}
+                      onToggle={() => onTogglePlugin(p.id)}
+                      onReload={() => handleReload(p.id)}
+                      onEdit={() => openEditor(p)}
+                      onShowDetail={() => setSelectedPlugin(p)}
+                      onDelete={() => onDeletePlugin(p.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* 插件详情对话框 */}
       <PluginDetailDialog

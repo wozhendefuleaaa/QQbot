@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { BotAccount, PlatformStatus, StatisticsSnapshot, PluginInfo } from '../../types';
+import { BotAccount, PlatformStatus, StatisticsSnapshot, PluginInfo, MenuKey } from '../../types';
 import { cn } from '../../lib/utils';
 
 type Props = {
@@ -8,9 +8,10 @@ type Props = {
   snapshot: StatisticsSnapshot | null;
   plugins: PluginInfo[];
   config: { webName: string; notice: string };
+  onNavigate?: (menu: MenuKey) => void;
 };
 
-export function HomePage({ accounts, platformStatus, snapshot, plugins, config }: Props) {
+export function HomePage({ accounts, platformStatus, snapshot, plugins, config, onNavigate }: Props) {
   // 统计数据
   const stats = useMemo(() => {
     const onlineAccounts = accounts.filter(a => a.status === 'ONLINE').length;
@@ -31,8 +32,8 @@ export function HomePage({ accounts, platformStatus, snapshot, plugins, config }
   }, [accounts, plugins, snapshot]);
 
   // 快速操作卡片
-  const quickActions = [
-    { icon: '🔌', title: '连接平台', description: '连接QQ机器人平台', action: 'connect', color: 'bg-blue-500' },
+  const quickActions: { icon: string; title: string; description: string; action: MenuKey; color: string }[] = [
+    { icon: '🔌', title: '连接平台', description: '连接QQ机器人平台', action: 'platform', color: 'bg-blue-500' },
     { icon: '💬', title: '发送消息', description: '快速发送消息给好友或群', action: 'chat', color: 'bg-green-500' },
     { icon: '🧩', title: '插件管理', description: '管理机器人插件', action: 'plugins', color: 'bg-purple-500' },
     { icon: '⚙️', title: '系统配置', description: '配置机器人参数', action: 'config', color: 'bg-orange-500' },
@@ -122,6 +123,7 @@ export function HomePage({ accounts, platformStatus, snapshot, plugins, config }
             <div
               key={index}
               className="bg-card rounded-xl border p-3 md:p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.98] md:hover:scale-[1.02] group"
+              onClick={() => onNavigate?.(action.action)}
             >
               <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center text-xl md:text-2xl mb-2 md:mb-3", action.color, "bg-opacity-10")}>
                 {action.icon}

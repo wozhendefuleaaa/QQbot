@@ -34,21 +34,21 @@ export function PluginDetailDialog({ plugin, open, onOpenChange, onDelete }: Plu
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-black">版本：</span>
+              <span className="text-muted-foreground">版本：</span>
               <span className="font-medium">{plugin.version}</span>
             </div>
             <div>
-              <span className="text-black">作者：</span>
+              <span className="text-muted-foreground">作者：</span>
               <span className="font-medium">{plugin.author || '未知'}</span>
             </div>
             <div>
-              <span className="text-black">状态：</span>
+              <span className="text-muted-foreground">状态：</span>
               <Badge variant={plugin.enabled ? 'success' : 'secondary'} className="ml-1">
                 {plugin.enabled ? '启用' : '停用'}
               </Badge>
             </div>
             <div>
-              <span className="text-black">加载：</span>
+              <span className="text-muted-foreground">加载：</span>
               <Badge variant={plugin.loaded ? 'default' : 'outline'} className="ml-1">
                 {plugin.loaded ? '已加载' : '未加载'}
               </Badge>
@@ -90,7 +90,7 @@ export function PluginDetailDialog({ plugin, open, onOpenChange, onDelete }: Plu
                   >
                     <div>
                       <code className="text-primary font-mono">/{cmd.name}</code>
-                      <span className="text-black ml-2">{cmd.description}</span>
+                      <span className="text-muted-foreground ml-2">{cmd.description}</span>
                     </div>
                     {cmd.permission && cmd.permission !== 'public' && (
                       <Badge variant="secondary" className="text-xs">

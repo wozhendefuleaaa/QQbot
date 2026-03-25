@@ -10,7 +10,17 @@ import { isYunzaiPlugin, loadYunzaiPlugin, initYunzaiGlobals, YunzaiPlugin, crea
 import { loadPythonPlugin, isPythonPlugin, unloadPythonPlugin as unloadPythonPluginProcess } from './python-adapter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PLUGINS_DIR = path.join(__dirname, '..', 'plugins');
+// 优先使用 src/plugins 目录（开发环境），否则使用 dist/plugins
+const SRC_PLUGINS_DIR = path.join(__dirname, '..', '..', 'src', 'plugins');
+const DIST_PLUGINS_DIR = path.join(__dirname, '..', 'plugins');
+const PLUGINS_DIR = existsSync(SRC_PLUGINS_DIR) ? SRC_PLUGINS_DIR : DIST_PLUGINS_DIR;
+
+/**
+ * 获取插件目录路径
+ */
+export function getPluginsDir(): string {
+  return PLUGINS_DIR;
+}
 
 // 默认插件配置
 const defaultConfig: PluginConfig = {
@@ -135,6 +145,37 @@ export async function loadAllPlugins(): Promise<void> {
 async function loadPluginPackage(packageDir: string): Promise<void> {
   const packageName = path.basename(packageDir);
   
+  addSystemLog('INFO', 'plugin', `开始加载插件包: ${packageName}`);
+  
+  // 首先初始化 Yunzai 全局对象（必须在加载插件之前）
+  const bot = createYunzaiBot('default', {}, {
+    sendMessage: async (targetId, targetType, text) => {
+      addSystemLog('INFO', 'plugin', `[Yunzai] 发送消息到 ${targetType}:${targetId}: ${text}`);
+    }
+  });
+  initYunzaiGlobals(bot);
+  
+  // 检查并安装插件包的依赖
+  const pluginPackageJsonPath = path.join(packageDir, 'package.json');
+  const pluginNodeModulesPath = path.join(packageDir, 'node_modules');
+  
+  if (existsSync(pluginPackageJsonPath) && !existsSync(pluginNodeModulesPath)) {
+    addSystemLog('INFO', 'plugin', `检测到插件包 ${packageName} 需要安装依赖...`);
+    try {
+      // 使用 PUPPETEER_SKIP_DOWNLOAD 跳过 puppeteer 下载
+      const { execSync } = await import('child_process');
+      execSync('npm install --legacy-peer-deps', {
+        cwd: packageDir,
+        env: { ...process.env, PUPPETEER_SKIP_DOWNLOAD: '1' },
+        stdio: 'pipe',
+        timeout: 120000 // 2分钟超时
+      });
+      addSystemLog('INFO', 'plugin', `插件包 ${packageName} 依赖安装完成`);
+    } catch (error) {
+      addSystemLog('WARN', 'plugin', `插件包 ${packageName} 依赖安装失败，部分功能可能不可用: ${error}`);
+    }
+  }
+  
   // 检查入口文件
   const entryFiles = ['index.js', 'index.mjs', 'main.js', 'main.mjs', 'app.js', 'app.mjs'];
   let entryFile: string | null = null;
@@ -147,23 +188,25 @@ async function loadPluginPackage(packageDir: string): Promise<void> {
     }
   }
   
-  // 检查 apps 目录
+  // 检查 apps 目录 - 这是云崽插件的主要加载方式
   const appsDir = path.join(packageDir, 'apps');
   if (existsSync(appsDir)) {
     const appsFiles = await fs.readdir(appsDir);
     const jsFiles = appsFiles.filter(f => f.endsWith('.js') || f.endsWith('.mjs'));
     
+    addSystemLog('INFO', 'plugin', `发现 ${jsFiles.length} 个插件文件在 ${packageName}/apps/`);
+    
     for (const file of jsFiles) {
       try {
-        await loadPluginFromFile(path.join(appsDir, file));
+        await loadYunzaiPluginFile(path.join(appsDir, file), packageName);
       } catch (error) {
         addSystemLog('ERROR', 'plugin', `加载插件包 ${packageName}/apps/${file} 失败: ${error}`);
       }
     }
   }
   
-  // 加载入口文件
-  if (entryFile) {
+  // 加载入口文件（如果存在且没有 apps 目录）
+  if (entryFile && !existsSync(appsDir)) {
     try {
       await loadPluginFromFile(entryFile);
     } catch (error) {
@@ -175,6 +218,173 @@ async function loadPluginPackage(packageDir: string): Promise<void> {
   if (!entryFile && !existsSync(appsDir)) {
     addSystemLog('WARN', 'plugin', `插件包 ${packageName} 没有找到入口文件或 apps 目录`);
   }
+}
+
+/**
+ * 加载云崽格式的插件文件（从 apps 目录）
+ */
+async function loadYunzaiPluginFile(filePath: string, packageName: string): Promise<Plugin | null> {
+  try {
+    addSystemLog('INFO', 'plugin', `加载云崽插件文件: ${filePath}`);
+    
+    // 动态导入插件模块
+    const importPath = `${filePath}?t=${Date.now()}`;
+    const module = await import(importPath);
+    
+    // 查找所有导出的插件类
+    const plugins: Plugin[] = [];
+    
+    // 遍历模块的所有导出
+    for (const [exportName, exportedValue] of Object.entries(module)) {
+      // 检查是否是 YunzaiPlugin 实例或类
+      const YunzaiPlugin = (globalThis as any).plugin;
+      if (!YunzaiPlugin) {
+        addSystemLog('WARN', 'plugin', 'YunzaiPlugin 基类未定义');
+        continue;
+      }
+      
+      let pluginInstance: any = null;
+      
+      // 如果是类（函数），尝试实例化
+      if (typeof exportedValue === 'function') {
+        try {
+          pluginInstance = new (exportedValue as any)();
+          addSystemLog('INFO', 'plugin', `成功实例化: ${exportName}`);
+        } catch (err) {
+          addSystemLog('WARN', 'plugin', `实例化失败: ${exportName} - ${err}`);
+          continue;
+        }
+      }
+      
+      // 检查是否有 rule 属性（云崽插件特征）
+      if (pluginInstance && pluginInstance.rule && Array.isArray(pluginInstance.rule)) {
+        addSystemLog('INFO', 'plugin', `发现云崽插件: ${pluginInstance.name || exportName}`);
+        
+        // 转换为内部插件格式
+        const pluginId = `${packageName}_${exportName}`;
+        const plugin = convertYunzaiPluginInstance(pluginInstance, pluginId);
+        
+        if (plugin) {
+          // 检查是否在注册表中启用
+          const registry = pluginRegistry.find(p => p.id === plugin.id);
+          if (registry && !registry.enabled) {
+            addSystemLog('INFO', 'plugin', `插件已禁用，跳过加载: ${plugin.name}`);
+            continue;
+          }
+          
+          // 如果已加载，先卸载
+          if (loadedPlugins.has(plugin.id)) {
+            await unloadPlugin(plugin.id);
+          }
+          
+          // 调用 onLoad
+          const ctx = createPluginContext(plugin.id);
+          if (plugin.onLoad) {
+            await plugin.onLoad(ctx);
+          }
+          
+          loadedPlugins.set(plugin.id, plugin);
+          addSystemLog('INFO', 'plugin', `[云崽] 插件已加载: ${plugin.name} (${plugin.id})`);
+          
+          // 更新或添加到注册表
+          if (!registry) {
+            pluginRegistry.unshift({
+              id: plugin.id,
+              name: plugin.name,
+              enabled: true,
+              version: plugin.version,
+              description: plugin.description,
+              updatedAt: new Date().toISOString()
+            });
+          }
+          
+          plugins.push(plugin);
+        }
+      }
+    }
+    
+    if (plugins.length > 0) {
+      await savePluginsToDisk();
+      helpCommandCache = null;
+    }
+    
+    return plugins.length > 0 ? plugins[0] : null;
+  } catch (error) {
+    addSystemLog('ERROR', 'plugin', `加载云崽插件文件失败: ${filePath} - ${error}`);
+    return null;
+  }
+}
+
+/**
+ * 转换云崽插件实例为内部插件格式
+ */
+function convertYunzaiPluginInstance(instance: any, pluginId: string): Plugin | null {
+  if (!instance.rule || !Array.isArray(instance.rule)) {
+    return null;
+  }
+  
+  const commands: CommandDefinition[] = [];
+  
+  for (const rule of instance.rule) {
+    if (rule.reg && rule.fnc) {
+      const handler = typeof rule.fnc === 'string' ? instance[rule.fnc] : rule.fnc;
+      if (typeof handler === 'function') {
+        commands.push({
+          name: rule.fnc || 'handler',
+          description: rule.describe || `匹配: ${rule.reg.toString()}`,
+          pattern: rule.reg instanceof RegExp ? rule.reg.source : rule.reg,
+          permission: rule.permission === 'master' ? 'owner' :
+                      rule.permission === 'admin' ? 'admin' : 'public',
+          handler: async (args: string[], event: MessageEvent, ctx: PluginContext) => {
+            // 创建 Yunzai 事件对象
+            const yunzaiEvent = createYunzaiEvent(
+              {
+                author: { id: event.senderId, username: '' },
+                content: event.message.text,
+                group_id: event.groupId,
+                id: event.message.id
+              },
+              ctx.getConnectedAccountId() || 'default',
+              async (targetId, targetType, text) => {
+                await ctx.sendMessage(targetId, targetType, text);
+              }
+            );
+            
+            // 设置插件实例的 e 属性
+            instance.e = yunzaiEvent;
+            
+            // 调用处理函数
+            const result = await handler.call(instance, yunzaiEvent);
+            return result;
+          }
+        });
+      }
+    }
+  }
+  
+  if (commands.length === 0) {
+    return null;
+  }
+  
+  return {
+    id: pluginId,
+    name: instance.name || pluginId,
+    version: '1.0.0',
+    description: instance.dsc || '',
+    enabled: true,
+    priority: instance.priority || 5000,
+    commands,
+    onLoad: async () => {
+      addSystemLog('INFO', 'plugin', `[云崽] 插件初始化: ${instance.name}`);
+      if (instance.init && typeof instance.init === 'function') {
+        try {
+          await instance.init();
+        } catch (error) {
+          addSystemLog('WARN', 'plugin', `插件初始化失败: ${instance.name} - ${error}`);
+        }
+      }
+    }
+  };
 }
 
 /**
@@ -425,7 +635,7 @@ export async function reloadPlugin(pluginId: string): Promise<Plugin | null> {
   // 查找插件文件
   const files = await fs.readdir(PLUGINS_DIR);
   const pluginFiles = files.filter(f =>
-    f.endsWith('.js') || f.endsWith('.mjs') || f.endsWith('.py')
+    f.endsWith('.ts') || f.endsWith('.js') || f.endsWith('.mjs') || f.endsWith('.py')
   );
   
   for (const file of pluginFiles) {
@@ -440,8 +650,9 @@ export async function reloadPlugin(pluginId: string): Promise<Plugin | null> {
         continue;
       }
       
-      // JS/TS 插件
-      const module = await import(filePath);
+      // JS/TS 插件 - 使用带时间戳的导入路径避免缓存
+      const importPath = `${filePath}?t=${Date.now()}`;
+      const module = await import(importPath);
       const plugin: Plugin = module.default || module.plugin;
       
       if (plugin && plugin.id === pluginId) {
@@ -658,6 +869,8 @@ async function handleCommand(
   const prefix = pluginConfig.commandPrefix;
   const text = message.text.trim();
   
+  addSystemLog('INFO', 'plugin', `handleCommand: text="${text}" commands=${commands.length}`);
+  
   // 检查帮助命令（支持有无前缀）
   if (text === `${prefix}help` || text === `${prefix}帮助` || text === 'help' || text === '帮助') {
     const helpText = generateHelpText();
@@ -668,7 +881,55 @@ async function handleCommand(
   }
   
   for (const cmd of commands) {
-    // 检查主命令和别名
+    // 首先检查 pattern 是否是正则表达式（Yunzai 插件风格）
+    if (cmd.pattern) {
+      const regex = typeof cmd.pattern === 'string' ? new RegExp(cmd.pattern) : cmd.pattern;
+      if (regex.test(text)) {
+        addSystemLog('INFO', 'plugin', `正则匹配成功: pattern=${regex} text="${text}"`);
+        
+        // 权限检查
+        const permission = cmd.permission || 'public';
+        if (!checkPermission(permission, event.senderId, pluginConfig)) {
+          const targetId = event.isGroup ? event.groupId : event.senderId;
+          const targetType = event.isGroup ? 'group' : 'user';
+          await ctx.sendMessage(targetId || '', targetType, '⚠️ 您没有权限执行此命令');
+          return true;
+        }
+        
+        // 冷却检查
+        const cooldownCheck = checkCooldown(cmd.name, event.senderId, cmd.cooldown);
+        if (!cooldownCheck.allowed) {
+          const targetId = event.isGroup ? event.groupId : event.senderId;
+          const targetType = event.isGroup ? 'group' : 'user';
+          await ctx.sendMessage(targetId || '', targetType, `⏳ 命令冷却中，请等待 ${cooldownCheck.remaining} 秒`);
+          return true;
+        }
+        
+        // 从消息文本中提取参数
+        const args = text.split(/\s+/).filter(Boolean);
+        
+        try {
+          const result = await cmd.handler(args, event, ctx);
+          if (typeof result === 'string' && result) {
+            const targetId = event.isGroup ? event.groupId : event.senderId;
+            const targetType = event.isGroup ? 'group' : 'user';
+            ctx.log('info', `准备发送回复: targetId=${targetId} targetType=${targetType}`);
+            await ctx.sendMessage(targetId || '', targetType, result);
+          }
+          
+          recordCommandUse(cmd.name, event.senderId);
+          return true;
+        } catch (error) {
+          ctx.log('error', `命令执行失败: ${cmd.name} - ${error}`);
+          const targetId = event.isGroup ? event.groupId : event.senderId;
+          const targetType = event.isGroup ? 'group' : 'user';
+          await ctx.sendMessage(targetId || '', targetType, `❌ 命令执行失败: ${error}`);
+          return true;
+        }
+      }
+    }
+    
+    // 检查主命令和别名（标准插件风格）
     const names = [cmd.name, ...(cmd.aliases || [])];
     
     for (const name of names) {
@@ -689,6 +950,8 @@ async function handleCommand(
       }
       
       if (matched) {
+        addSystemLog('INFO', 'plugin', `命令名称匹配成功: cmd=${name}`);
+        
         // 权限检查
         const permission = cmd.permission || 'public';
         if (!checkPermission(permission, event.senderId, pluginConfig)) {
