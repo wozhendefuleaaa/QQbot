@@ -82,6 +82,7 @@ function getAqiColor(level) {
 }
 
 module.exports = {
+  id: 'weather-query',
   name: '天气查询',
   version: '1.0.0',
   description: '天气查询插件，支持查询全国各城市实时天气和预报',
