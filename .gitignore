@@ -37,6 +37,7 @@ backend/data/
 
 # runtime files
 backend/src/plugins/.runtime/
+backend/src/plugins/.temp/
 
 # test plugins (separate repos)
 test-plugins/

@@ -214,50 +214,145 @@ function httpGet(url: string): Promise<string> {
 /**
  * 下载文件
  */
-function downloadFile(url: string, destPath: string): Promise<void> {
+// Gitee API Token - 用于下载私有仓库或需要认证的仓库归档
+const GITEE_ACCESS_TOKEN = '7d5b0ad1b7cca069b4d1ae5ea66ab584';
+
+/**
+ * 将 Gitee 仓库 URL 转换为 API zipball URL
+ * 支持格式：
+ * - https://gitee.com/owner/repo/repository/archive/master.zip
+ * - https://gitee.com/owner/repo
+ */
+function convertToGiteeApiUrl(url: string): string {
+  // 匹配 Gitee 仓库 archive URL
+  const archiveMatch = url.match(/https:\/\/gitee\.com\/([^/]+)\/([^/]+)\/repository\/archive\/([^/]+)\.zip/);
+  if (archiveMatch) {
+    const [, owner, repo, ref] = archiveMatch;
+    return `https://gitee.com/api/v5/repos/${owner}/${repo}/zipball/${ref}?access_token=${GITEE_ACCESS_TOKEN}`;
+  }
+  
+  // 如果已经是 API URL，添加 token
+  if (url.includes('gitee.com/api/v5/repos/') && !url.includes('access_token')) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}access_token=${GITEE_ACCESS_TOKEN}`;
+  }
+  
+  return url;
+}
+
+/**
+ * 使用 curl 命令下载文件（支持自动跟随重定向）
+ * 对于 Gitee 等需要复杂重定向处理的平台更可靠
+ */
+async function downloadFileWithCurl(url: string, destPath: string): Promise<void> {
+  const timeout = 120000; // 2分钟超时
+  
+  addSystemLog('INFO', 'market', `使用 curl 下载: ${url}`);
+  
+  try {
+    // 使用 curl 下载，-L 跟随重定向，-o 输出到文件
+    const { stdout, stderr } = await execAsync(
+      `curl -L --max-time ${Math.floor(timeout / 1000)} -o "${destPath}" "${url}"`,
+      { timeout: timeout + 10000 }
+    );
+    
+    // 检查下载的文件
+    if (!fs.existsSync(destPath)) {
+      throw new Error('下载失败: 文件未创建');
+    }
+    
+    const stats = fs.statSync(destPath);
+    if (stats.size === 0) {
+      fs.unlinkSync(destPath);
+      throw new Error('下载失败: 文件为空');
+    }
+    
+    // 检查是否为 HTML 文件（错误页面）
+    const buffer = fs.readFileSync(destPath);
+    const header = buffer.slice(0, 100).toString('utf8');
+    if (header.includes('<!DOCTYPE html') || header.includes('<html')) {
+      fs.unlinkSync(destPath);
+      throw new Error('下载失败: 服务器返回 HTML 页面而不是 ZIP 文件');
+    }
+    
+    addSystemLog('INFO', 'market', `curl 下载成功: ${stats.size} 字节`);
+  } catch (error) {
+    if (fs.existsSync(destPath)) {
+      fs.unlinkSync(destPath);
+    }
+    throw error;
+  }
+}
+
+function downloadFile(url: string, destPath: string, cookies: string = ''): Promise<void> {
   return new Promise((resolve, reject) => {
+    // 对于 Gitee URL，使用 curl 下载（更可靠）
+    if (url.includes('gitee.com')) {
+      downloadFileWithCurl(url, destPath).then(resolve).catch(reject);
+      return;
+    }
+    
+    // 非 Gitee URL 使用 Node.js 原生下载
     const client = url.startsWith('https') ? https : http;
     const file = fs.createWriteStream(destPath);
     const timeout = 120000; // 2分钟超时
-    
-    const req = client.get(url, {
-      timeout,
-      headers: {
-        'User-Agent': 'QQBot-PluginMarket/1.0',
-      },
-    }, (res) => {
-      if (res.statusCode === 302 || res.statusCode === 301) {
+
+    // 模拟浏览器请求
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/zip,application/octet-stream,*/*',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'Accept-Encoding': 'identity',
+    };
+
+    if (cookies) {
+      headers['Cookie'] = cookies;
+    }
+
+    const req = client.get(url, { timeout, headers }, (res) => {
+      // 处理重定向
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.statusCode !== 304) {
         file.close();
         fs.unlinkSync(destPath);
         const location = res.headers.location;
         if (location) {
-          downloadFile(location, destPath).then(resolve).catch(reject);
+          addSystemLog('INFO', 'market', `下载重定向: ${res.statusCode} -> ${location}`);
+          downloadFile(location, destPath, cookies).then(resolve).catch(reject);
         } else {
           reject(new Error('重定向但没有 location 头'));
         }
         return;
       }
-      
+
       if (res.statusCode !== 200) {
         file.close();
         fs.unlinkSync(destPath);
         reject(new Error(`下载失败: HTTP ${res.statusCode}`));
         return;
       }
-      
+
+      // 检查内容类型
+      const contentType = res.headers['content-type'] || '';
+      if (contentType.includes('text/html')) {
+        file.close();
+        fs.unlinkSync(destPath);
+        reject(new Error(`下载失败: 服务器返回 HTML 页面而不是 ZIP 文件`));
+        return;
+      }
+
       res.pipe(file);
       file.on('finish', () => {
         file.close();
         resolve();
       });
     });
-    
+
     req.on('error', (err) => {
       file.close();
       fs.unlinkSync(destPath);
       reject(err);
     });
-    
+
     req.on('timeout', () => {
       req.destroy();
       file.close();
@@ -268,25 +363,58 @@ function downloadFile(url: string, destPath: string): Promise<void> {
 }
 
 /**
- * 解压 ZIP 文件 (使用 unzip 命令)
+ * 解压 ZIP 文件 (使用 unzip 命令或 Python)
  */
 async function extractZip(zipPath: string, destDir: string): Promise<void> {
   // 确保目标目录存在
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true });
   }
-  
-  try {
-    // 尝试使用 unzip 命令
-    await execAsync(`unzip -o "${zipPath}" -d "${destDir}"`);
-  } catch {
-    // 如果 unzip 不可用，尝试使用 Python
-    try {
-      await execAsync(`python3 -c "import zipfile; zipfile.ZipFile('${zipPath}').extractall('${destDir}')"`);
-    } catch {
-      throw new Error('解压失败: 需要 unzip 或 Python 环境');
-    }
+
+  // 检查 ZIP 文件是否存在
+  if (!fs.existsSync(zipPath)) {
+    throw new Error(`ZIP 文件不存在: ${zipPath}`);
   }
+
+  addSystemLog('INFO', 'market', `开始解压: ${zipPath} -> ${destDir}`);
+
+  // 方法1: 使用 unzip 命令
+  try {
+    const { stdout, stderr } = await execAsync(`unzip -o "${zipPath}" -d "${destDir}"`, {
+      timeout: 60000, // 60秒超时
+    });
+    addSystemLog('INFO', 'market', `unzip 解压成功: ${stderr || stdout || '无输出'}`);
+    return;
+  } catch (unzipError) {
+    const errMsg = unzipError instanceof Error ? unzipError.message : String(unzipError);
+    addSystemLog('WARN', 'market', `unzip 解压失败: ${errMsg}，尝试使用 Python...`);
+  }
+
+  // 方法2: 使用 Python zipfile 模块
+  try {
+    // 使用双引号避免单引号转义问题
+    const pythonCmd = `python3 -c "import zipfile; zipfile.ZipFile('${zipPath}').extractall('${destDir}')"`;
+    await execAsync(pythonCmd, { timeout: 60000 });
+    addSystemLog('INFO', 'market', `Python 解压成功`);
+    return;
+  } catch (pythonError) {
+    const errMsg = pythonError instanceof Error ? pythonError.message : String(pythonError);
+    addSystemLog('ERROR', 'market', `Python 解压也失败: ${errMsg}`);
+  }
+
+  // 方法3: 使用 Node.js 内置的 zlib + adm-zip 风格的解压（如果系统有 tar）
+  try {
+    // 某些系统可能有 python 而不是 python3
+    await execAsync(`python -c "import zipfile; zipfile.ZipFile('${zipPath}').extractall('${destDir}')"`, {
+      timeout: 60000,
+    });
+    addSystemLog('INFO', 'market', `Python (python) 解压成功`);
+    return;
+  } catch (python2Error) {
+    addSystemLog('WARN', 'market', `Python (python) 也失败`);
+  }
+
+  throw new Error('解压失败: 需要 unzip 或 Python 环境（已尝试 unzip, python3, python）');
 }
 
 /**
