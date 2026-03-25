@@ -145,7 +145,10 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
-        body: JSON.stringify({ pluginId: plugin.id }),
+        body: JSON.stringify({
+          pluginId: plugin.id,
+          downloadUrl: plugin.downloadUrl
+        }),
       });
 
       if (!response.ok) {
