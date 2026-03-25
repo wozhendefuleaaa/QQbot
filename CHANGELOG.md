@@ -61,7 +61,11 @@
   - 后端 [`rate-limit.ts`](backend/src/core/middleware/rate-limit.ts) - 豁免安装进度查询接口 `/api/plugins/market/install/progress/` 的速率限制
   - 前端 [`PluginMarketTab.tsx`](webui/src/modules/plugins/PluginMarketTab.tsx) - 轮询间隔从 500ms 改为 1000ms
   - 前端在安装完成或失败时停止轮询
-  - 修复进度数据解析逻辑 (`data.data || data`)
+
+- **插件安装进度条不更新** - 修正进度数据解析逻辑
+  - 修复 [`PluginMarketTab.tsx`](webui/src/modules/plugins/PluginMarketTab.tsx) 中的进度解析问题
+  - 原逻辑 `data.data || data` 在后端返回 `{success: true, data: null}` 时会错误地返回整个响应对象
+  - 新逻辑只在 `data.data` 存在时才更新进度状态，避免覆盖初始进度
 
 ## [1.11.1] - 2026-03-22
 
