@@ -67,6 +67,11 @@
   - 原逻辑 `data.data || data` 在后端返回 `{success: true, data: null}` 时会错误地返回整个响应对象
   - 新逻辑只在 `data.data` 存在时才更新进度状态，避免覆盖初始进度
 
+- **weather-query 插件加载失败** - 修复 CommonJS 模块导出格式识别
+  - 修复 [`plugin-manager.ts`](backend/src/core/plugin-manager.ts) 中的插件加载逻辑
+  - 原逻辑只检查 `module.default` 和 `module.plugin`，不支持直接的 `module.exports = {...}` 格式
+  - 新逻辑增加对直接导出对象格式的支持：`module.id && module.name ? module : null`
+
 ## [1.11.1] - 2026-03-22
 
 ### 修复

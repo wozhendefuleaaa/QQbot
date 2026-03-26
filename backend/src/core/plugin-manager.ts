@@ -492,7 +492,8 @@ export async function loadPluginFromFile(filePath: string): Promise<Plugin | Plu
     }
     
     // 标准插件格式
-    const plugin: Plugin = module.default || module.plugin;
+    // 支持: module.default, module.plugin, 或直接导出 (module.exports = {...})
+    const plugin: Plugin = module.default || module.plugin || (module.id && module.name ? module : null);
     
     if (!plugin || !plugin.id || !plugin.name) {
       addSystemLog('WARN', 'plugin', `插件文件格式无效: ${filePath}`);
