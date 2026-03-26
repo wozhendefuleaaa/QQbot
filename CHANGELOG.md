@@ -1,5 +1,28 @@
 # 更新日志 (Changelog)
 
+## [1.13.0] - 2026-03-26
+
+### 新增
+
+#### 🔧 插件依赖自动安装
+
+- **插件加载时自动安装依赖** - 当插件因缺少依赖加载失败时，自动检测并安装缺失的依赖
+  - 修改 [`backend/src/core/plugin-manager.ts`](backend/src/core/plugin-manager.ts) 的 `loadPluginFromFile` 函数
+  - 检测 `Cannot find package`、`MODULE_NOT_FOUND` 等依赖缺失错误
+  - 自动读取插件的 `package.json` 并执行 `npm install`
+  - 安装完成后自动重新加载插件
+  - 支持 2 分钟超时和 puppeteer 跳过
+
+- **插件市场安装依赖增强** - 改进插件市场安装流程的依赖安装机制
+  - 修改 [`backend/src/modules/market/routes.ts`](backend/src/modules/market/routes.ts)
+  - 添加重试机制（最多 3 次尝试）
+  - 支持单个依赖逐个安装作为后备方案
+  - 更详细的进度状态更新
+
+- **CommonJS 插件导出格式支持** - 支持更多插件导出格式
+  - 支持 `module.exports = {...}` 直接导出格式
+  - 同时支持 `module.default`、`module.plugin` 和直接导出对象
+
 ## [1.12.0] - 2026-03-24
 
 ### 新增

@@ -539,6 +539,91 @@ export async function loadPluginFromFile(filePath: string): Promise<Plugin | Plu
     
     return plugin;
   } catch (error) {
+    const errorMessage = String(error);
+    
+    // 检测是否是依赖缺失错误
+    const isDependencyError = errorMessage.includes('Cannot find package') ||
+                              errorMessage.includes('MODULE_NOT_FOUND') ||
+                              errorMessage.includes('Error: Cannot find module');
+    
+    if (isDependencyError) {
+      addSystemLog('WARN', 'plugin', `检测到依赖缺失，尝试自动安装: ${filePath}`);
+      
+      // 获取插件目录
+      const pluginDir = path.dirname(filePath);
+      const pkgJsonPath = path.join(pluginDir, 'package.json');
+      
+      if (existsSync(pkgJsonPath)) {
+        try {
+          const { execSync } = await import('child_process');
+          
+          addSystemLog('INFO', 'plugin', `正在为插件安装依赖: ${path.basename(pluginDir)}`);
+          
+          // 安装依赖
+          execSync('npm install --production --no-audit --no-fund --legacy-peer-deps', {
+            cwd: pluginDir,
+            env: { ...process.env, PUPPETEER_SKIP_DOWNLOAD: '1' },
+            stdio: 'pipe',
+            timeout: 120000 // 2分钟超时
+          });
+          
+          addSystemLog('INFO', 'plugin', `依赖安装完成，重新加载插件: ${path.basename(filePath)}`);
+          
+          // 重新尝试加载插件（使用新的时间戳绕过缓存）
+          const retryImportPath = `${filePath}?t=${Date.now()}_retry`;
+          const retryModule = await import(retryImportPath);
+          
+          // 重新解析插件
+          const retryPlugin: Plugin = retryModule.default || retryModule.plugin || (retryModule.id && retryModule.name ? retryModule : null);
+          
+          if (retryPlugin && retryPlugin.id && retryPlugin.name) {
+            // 检查是否在注册表中启用
+            const registry = pluginRegistry.find(p => p.id === retryPlugin.id);
+            if (registry && !registry.enabled) {
+              addSystemLog('INFO', 'plugin', `插件已禁用，跳过加载: ${retryPlugin.name}`);
+              return null;
+            }
+            
+            // 如果已加载，先卸载
+            if (loadedPlugins.has(retryPlugin.id)) {
+              await unloadPlugin(retryPlugin.id);
+            }
+            
+            // 加载插件
+            const ctx = createPluginContext(retryPlugin.id);
+            if (retryPlugin.onLoad) {
+              await retryPlugin.onLoad(ctx);
+            }
+            
+            loadedPlugins.set(retryPlugin.id, retryPlugin);
+            addSystemLog('INFO', 'plugin', `插件已加载（依赖自动安装）: ${retryPlugin.name} v${retryPlugin.version}`);
+            
+            // 更新或添加到注册表
+            if (!registry) {
+              pluginRegistry.unshift({
+                id: retryPlugin.id,
+                name: retryPlugin.name,
+                enabled: true,
+                version: retryPlugin.version,
+                description: retryPlugin.description,
+                updatedAt: new Date().toISOString()
+              });
+              await savePluginsToDisk();
+            }
+            
+            // 清除帮助缓存
+            helpCommandCache = null;
+            
+            return retryPlugin;
+          }
+        } catch (installError) {
+          addSystemLog('ERROR', 'plugin', `依赖安装失败: ${installError}`);
+        }
+      } else {
+        addSystemLog('WARN', 'plugin', `插件目录没有 package.json，无法自动安装依赖: ${pluginDir}`);
+      }
+    }
+    
     addSystemLog('ERROR', 'plugin', `加载插件失败: ${filePath} - ${error}`);
     return null;
   }

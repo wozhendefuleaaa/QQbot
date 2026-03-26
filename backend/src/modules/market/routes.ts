@@ -728,12 +728,71 @@ async function installPluginAsync(pluginId: string, downloadUrl: string): Promis
     // 检查是否有 package.json
     const pkgJsonPath = path.join(pluginDir, 'package.json');
     if (fs.existsSync(pkgJsonPath)) {
-      // 安装 npm 依赖
+      // 读取 package.json 获取依赖信息
+      let pkgJson: { dependencies?: Record<string, string>; [key: string]: unknown } = {};
       try {
-        await execAsync('npm install --production', { cwd: pluginDir });
-        addSystemLog('INFO', 'market', `插件 ${pluginId} 依赖安装完成`);
-      } catch (err) {
-        addSystemLog('WARN', 'market', `插件 ${pluginId} 依赖安装警告: ${(err as Error).message}`);
+        pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+      } catch {
+        // 忽略解析错误
+      }
+      
+      const deps = pkgJson.dependencies || {};
+      const depCount = Object.keys(deps).length;
+      
+      if (depCount > 0) {
+        updateProgress(pluginId, 'installing', 60, `正在安装 ${depCount} 个依赖包...`);
+        
+        // 安装 npm 依赖（带重试机制）
+        let installSuccess = false;
+        const maxRetries = 3;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            addSystemLog('INFO', 'market', `插件 ${pluginId} 依赖安装尝试 ${attempt}/${maxRetries}...`);
+            
+            // 使用 npm install 并设置超时
+            const { stdout, stderr } = await execAsync('npm install --production --no-audit --no-fund', {
+              cwd: pluginDir,
+              timeout: 120000 // 2 分钟超时
+            });
+            
+            installSuccess = true;
+            addSystemLog('INFO', 'market', `插件 ${pluginId} 依赖安装完成`);
+            
+            if (stderr && !stderr.includes('npm warn')) {
+              addSystemLog('INFO', 'market', `npm stderr: ${stderr}`);
+            }
+            break;
+          } catch (err) {
+            const errorMsg = (err as Error).message;
+            addSystemLog('WARN', 'market', `插件 ${pluginId} 依赖安装失败 (尝试 ${attempt}/${maxRetries}): ${errorMsg}`);
+            
+            if (attempt < maxRetries) {
+              // 等待后重试
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+        }
+        
+        if (!installSuccess) {
+          // 尝试逐个安装依赖
+          addSystemLog('INFO', 'market', `插件 ${pluginId} 尝试逐个安装依赖...`);
+          updateProgress(pluginId, 'installing', 70, '正在逐个安装依赖...');
+          
+          for (const [depName, depVersion] of Object.entries(deps)) {
+            try {
+              await execAsync(`npm install "${depName}@${depVersion}" --no-audit --no-fund`, {
+                cwd: pluginDir,
+                timeout: 60000
+              });
+              addSystemLog('INFO', 'market', `插件 ${pluginId} 依赖 ${depName} 安装成功`);
+            } catch (err) {
+              addSystemLog('WARN', 'market', `插件 ${pluginId} 依赖 ${depName} 安装失败: ${(err as Error).message}`);
+            }
+          }
+        }
+      } else {
+        addSystemLog('INFO', 'market', `插件 ${pluginId} 无外部依赖`);
       }
     }
     
