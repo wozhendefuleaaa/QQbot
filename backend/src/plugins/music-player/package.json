@@ -1,0 +1,20 @@
+{
+  "name": "music-player",
+  "version": "2.0.0",
+  "description": "点歌、播放音乐，支持 QQ音乐、网易云音乐",
+  "main": "index.js",
+  "author": "music-fan",
+  "license": "MIT",
+  "keywords": ["音乐", "点歌", "娱乐", "wawa-plugin"],
+  "wawa": {
+    "name": "音乐播放",
+    "version": "2.0.0",
+    "description": "点歌、播放音乐，支持 QQ音乐、网易云音乐",
+    "author": "music-fan",
+    "commands": [
+      { "command": "#点歌", "description": "搜索并点歌" },
+      { "command": "#热歌", "description": "获取热门歌曲榜单" },
+      { "command": "#搜歌", "description": "搜索歌曲" }
+    ]
+  }
+}

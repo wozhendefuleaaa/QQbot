@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MarketPlugin, InstallProgress } from '../../types';
+import { MarketPlugin, InstallProgress, PluginUpdate } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,10 +11,15 @@ import {
   GitBranch,
   CheckCircle2,
   Loader2,
+  BarChart3,
+  ArrowUp,
 } from 'lucide-react';
 import { PluginMarketCard } from './PluginMarketCard';
 import { PluginInstallDialog } from './PluginInstallDialog';
+import { MarketPluginDetailDialog } from './PluginDetailDialog';
 import { QuickTips, EmptyState } from '@/components/ui/help-tooltip';
+import { MarketStatsPanel } from './MarketStatsPanel';
+import { UpdateIndicator } from './UpdateIndicator';
 
 type Props = {
   installedPluginIds: string[];
@@ -44,11 +49,21 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showYunzaiOnly, setShowYunzaiOnly] = useState(false);
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
 
   // 安装状态
   const [installingPlugin, setInstallingPlugin] = useState<MarketPlugin | null>(null);
   const [installProgress, setInstallProgress] = useState<InstallProgress | null>(null);
   const [showInstallDialog, setShowInstallDialog] = useState(false);
+
+  // 详情对话框状态
+  const [detailPlugin, setDetailPlugin] = useState<MarketPlugin | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+
+  // 更新检测状态
+  const [availableUpdates, setAvailableUpdates] = useState<PluginUpdate[]>([]);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updatingPluginId, setUpdatingPluginId] = useState<string | null>(null);
 
   // 获取市场插件列表
   const fetchMarketPlugins = useCallback(async (forceRefresh = false) => {
@@ -192,6 +207,51 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
     return matchesSearch && matchesCategory && matchesYunzai;
   });
 
+  // 检测插件更新
+  const checkForUpdates = useCallback(async () => {
+    setCheckingUpdates(true);
+    try {
+      const response = await fetch('/api/plugins/market/check-updates', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableUpdates(data.data || []);
+      }
+    } catch (err) {
+      console.error('检测更新失败:', err);
+    } finally {
+      setCheckingUpdates(false);
+    }
+  }, []);
+
+  // 更新单个插件
+  const handleUpdatePlugin = useCallback(async (pluginId: string) => {
+    // 找到市场中的插件信息
+    const marketPlugin = plugins.find(p => p.id === pluginId);
+    if (!marketPlugin) return;
+    
+    setUpdatingPluginId(pluginId);
+    
+    // 使用安装流程来更新插件
+    await handleInstall(marketPlugin);
+    
+    // 安装完成后清除更新状态
+    setTimeout(() => {
+      setAvailableUpdates(prev => prev.filter(u => u.id !== pluginId));
+      setUpdatingPluginId(null);
+      onInstallComplete();
+    }, 2000);
+  }, [plugins, handleInstall, onInstallComplete]);
+
+  // 获取插件的更新信息
+  const getPluginUpdate = useCallback((pluginId: string) => {
+    return availableUpdates.find(u => u.id === pluginId);
+  }, [availableUpdates]);
+
   // 统计信息
   const stats = {
     total: plugins.length,
@@ -303,9 +363,66 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
               <GitBranch className="w-4 h-4 mr-1" />
               仅云崽兼容
             </Button>
+            <Button
+              variant={showStatsPanel ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowStatsPanel(!showStatsPanel)}
+            >
+              <BarChart3 className="w-4 h-4 mr-1" />
+              统计面板
+            </Button>
+            <UpdateIndicator
+              updates={availableUpdates}
+              checking={checkingUpdates}
+              onCheckUpdates={checkForUpdates}
+            />
           </div>
+
+          {/* 显示可用的更新列表 */}
+          {availableUpdates.length > 0 && (
+            <Card className="mt-4 border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/20">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <ArrowUp className="h-4 w-4 text-orange-500" />
+                  <span className="font-medium text-orange-700 dark:text-orange-400">
+                    有 {availableUpdates.length} 个插件可更新
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {availableUpdates.map((update) => (
+                    <div
+                      key={update.id}
+                      className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border"
+                    >
+                      <div>
+                        <span className="font-medium text-sm">{update.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {update.currentVersion} → {update.latestVersion}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleUpdatePlugin(update.id)}
+                        disabled={updatingPluginId === update.id}
+                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                      >
+                        {updatingPluginId === update.id ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ArrowUp className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </CardContent>
       </Card>
+
+      {/* 统计面板 */}
+      {showStatsPanel && <MarketStatsPanel />}
 
       {/* 错误提示 */}
       {error && (
@@ -365,6 +482,10 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
                     plugin={plugin}
                     isInstalled={installedPluginIds.includes(plugin.id)}
                     onInstall={() => handleInstall(plugin)}
+                    onViewDetails={() => {
+                      setDetailPlugin(plugin);
+                      setShowDetailDialog(true);
+                    }}
                   />
                 ))}
               </div>
@@ -383,6 +504,25 @@ export function PluginMarketTab({ installedPluginIds, onInstallComplete }: Props
             setShowInstallDialog(false);
             setInstallingPlugin(null);
             setInstallProgress(null);
+          }
+        }}
+      />
+
+      {/* 插件详情对话框 */}
+      <MarketPluginDetailDialog
+        plugin={detailPlugin}
+        open={showDetailDialog}
+        onOpenChange={(open: boolean) => {
+          setShowDetailDialog(open);
+          if (!open) {
+            setDetailPlugin(null);
+          }
+        }}
+        isInstalled={detailPlugin ? installedPluginIds.includes(detailPlugin.id) : false}
+        onInstall={() => {
+          if (detailPlugin) {
+            handleInstall(detailPlugin);
+            setShowDetailDialog(false);
           }
         }}
       />

@@ -1,5 +1,41 @@
 # 更新日志 (Changelog)
 
+## [1.14.0] - 2026-03-26
+
+### 新增
+
+#### 📊 插件市场第二阶段优化
+
+- **统计面板** - 新增市场统计可视化面板
+  - 新增 [`webui/src/modules/plugins/MarketStatsPanel.tsx`](webui/src/modules/plugins/MarketStatsPanel.tsx)
+  - 使用 recharts 图表库展示统计数据
+  - 分类分布饼图、热门插件柱状图
+  - 安装日志列表（显示最近安装记录）
+  - 统计卡片：总插件数、总下载量、本地安装数
+
+- **插件详情对话框** - 分别为市场插件和本地插件创建详情对话框
+  - 新增 [`webui/src/modules/plugins/PluginDetailDialog.tsx`](webui/src/modules/plugins/PluginDetailDialog.tsx) - 市场插件详情（MarketPluginDetailDialog）
+  - 新增 [`webui/src/modules/plugins/LocalPluginDetailDialog.tsx`](webui/src/modules/plugins/LocalPluginDetailDialog.tsx) - 本地插件详情
+  - 展示完整插件信息：描述、标签、依赖、主页、仓库等
+  - 支持从详情对话框直接安装插件
+
+- **更新检测 UI** - 检测已安装插件的市场更新
+  - 新增 [`webui/src/modules/plugins/UpdateIndicator.tsx`](webui/src/modules/plugins/UpdateIndicator.tsx)
+  - "检测更新"按钮，调用 `/api/plugins/market/check-updates` API
+  - 显示可更新插件列表，当前版本 → 最新版本
+  - 一键更新功能（复用安装流程）
+  - 更新徽章动画提示
+
+- **类型定义扩展**
+  - [`webui/src/types.ts`](webui/src/types.ts) 添加 `PluginUpdate`、`InstallLog`、`MarketStats` 类型
+  - [`webui/src/hooks/useApi.ts`](webui/src/hooks/useApi.ts) 添加 `useCheckUpdates` hook
+
+### 技术细节
+
+- 前端新增 recharts 和 react-markdown 依赖
+- 分离 MarketPlugin 和 PluginInfo 类型的详情对话框，避免类型冲突
+- 构建成功，无 TypeScript 错误
+
 ## [1.13.0] - 2026-03-26
 
 ### 新增

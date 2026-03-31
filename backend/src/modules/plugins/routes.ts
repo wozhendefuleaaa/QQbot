@@ -341,4 +341,87 @@ export function registerPluginRoutes(app: Express) {
     addSystemLog('INFO', 'plugin', `已删除插件：${deleted.name}`);
     res.json({ ok: true, deleted });
   });
+  // 插件健康监控 API
+  app.get('/api/plugins/health', (_req, res) => {
+    const loaded = getLoadedPlugins();
+    const PLUGINS_DIR = getPluginsDir();
+    
+    type PluginHealthEntry = {
+      id: string;
+      name: string;
+      version: string;
+      status: 'healthy' | 'error' | 'disabled';
+      enabled: boolean;
+      commandCount: number;
+      messageCount: number;
+      errorCount: number;
+      lastActiveAt: string | null;
+      loadedAt: string;
+      uptime: number;
+    };
+    
+    const healthData: PluginHealthEntry[] = loaded.map(plugin => {
+      const stats = pluginHealthStats.get(plugin.id) || {
+        messageCount: 0,
+        errorCount: 0,
+        lastActiveAt: null as string | null,
+        loadedAt: new Date().toISOString(),
+      };
+      
+      return {
+        id: plugin.id,
+        name: plugin.name,
+        version: plugin.version,
+        status: 'healthy' as const,
+        enabled: plugin.enabled ?? true,
+        commandCount: plugin.commands?.length || 0,
+        messageCount: stats.messageCount,
+        errorCount: stats.errorCount,
+        lastActiveAt: stats.lastActiveAt,
+        loadedAt: stats.loadedAt,
+        uptime: Date.now() - new Date(stats.loadedAt).getTime(),
+      };
+    });
+    
+    // 加上已注册但未加载的插件（error状态）
+    for (const p of plugins) {
+      if (!loaded.find(l => l.id === p.id) && p.enabled) {
+        healthData.push({
+          id: p.id,
+          name: p.name,
+          version: p.version || '?',
+          status: 'error',
+          enabled: p.enabled,
+          commandCount: 0,
+          messageCount: 0,
+          errorCount: 1,
+          lastActiveAt: null,
+          loadedAt: new Date().toISOString(),
+          uptime: 0,
+        });
+      }
+    }
+    
+    res.json({
+      total: plugins.length,
+      loaded: loaded.length,
+      errored: plugins.filter(p => p.enabled && !loaded.find(l => l.id === p.id)).length,
+      disabled: plugins.filter(p => !p.enabled).length,
+      plugins: healthData,
+    });
+  });
+  
+  // 重置插件健康统计
+  app.delete('/api/plugins/:id/health', (req, res) => {
+    pluginHealthStats.delete(req.params.id);
+    res.json({ ok: true });
+  });
 }
+
+// 插件健康统计（内存中）
+export const pluginHealthStats = new Map<string, {
+  messageCount: number;
+  errorCount: number;
+  lastActiveAt: string | null;
+  loadedAt: string;
+}>();

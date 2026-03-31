@@ -216,6 +216,8 @@ export type MarketPlugin = {
   stars?: number;
   downloads?: number;
   installed?: boolean;
+  readme?: string;
+  dependencies?: string[];
 };
 
 export type MarketIndex = {
@@ -230,4 +232,34 @@ export type InstallProgress = {
   progress: number;
   message: string;
   error?: string;
+};
+
+// 安装日志类型
+export type InstallLog = {
+  id: string;
+  pluginId: string;
+  pluginName: string;
+  status: 'success' | 'failed';
+  message: string;
+  duration: number;
+  timestamp: string;
+  error?: string;
+};
+
+// 市场统计类型
+export type MarketStats = {
+  totalPlugins: number;
+  totalDownloads: number;
+  localInstalls: number;
+  categories: Record<string, number>;
+  recentInstalls: InstallLog[];
+  popularPlugins: Array<{ id: string; name: string; downloads: number }>;
+};
+
+// 插件更新检测类型
+export type PluginUpdate = {
+  id: string;
+  currentVersion: string;
+  latestVersion: string;
+  name: string;
 };

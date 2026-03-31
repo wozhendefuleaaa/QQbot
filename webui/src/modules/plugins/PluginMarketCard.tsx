@@ -15,9 +15,10 @@ type PluginMarketCardProps = {
   plugin: MarketPlugin;
   isInstalled: boolean;
   onInstall: () => void;
+  onViewDetails?: () => void;
 };
 
-export function PluginMarketCard({ plugin, isInstalled, onInstall }: PluginMarketCardProps) {
+export function PluginMarketCard({ plugin, isInstalled, onInstall, onViewDetails }: PluginMarketCardProps) {
   // 格式化更新时间
   const formatDate = (dateStr: string) => {
     try {
@@ -130,6 +131,16 @@ export function PluginMarketCard({ plugin, isInstalled, onInstall }: PluginMarke
             <Button variant="default" className="flex-1" onClick={onInstall}>
               <Download className="w-4 h-4 mr-1" />
               安装
+            </Button>
+          )}
+          {onViewDetails && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onViewDetails}
+              title="查看详情"
+            >
+              <Package className="w-4 h-4" />
             </Button>
           )}
           {plugin.homepage && (

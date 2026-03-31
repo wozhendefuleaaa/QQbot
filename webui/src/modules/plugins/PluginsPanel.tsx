@@ -5,7 +5,7 @@ import { Package, Upload, Plus, Store, Puzzle } from 'lucide-react';
 import { PluginStats } from './PluginStats';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginCard } from './PluginCard';
-import { PluginDetailDialog } from './PluginDetailDialog';
+import { LocalPluginDetailDialog } from './LocalPluginDetailDialog';
 import { PluginConfigDialog } from './PluginConfigDialog';
 import { PluginUploadDialog } from './PluginUploadDialog';
 import { PluginCodeEditor } from './PluginCodeEditor';
@@ -330,11 +330,13 @@ export function PluginsPanel({
       )}
 
       {/* 插件详情对话框 */}
-      <PluginDetailDialog
+      <LocalPluginDetailDialog
         plugin={selectedPlugin}
         open={selectedPlugin !== null}
-        onOpenChange={(open) => !open && setSelectedPlugin(null)}
+        onOpenChange={(open: boolean) => !open && setSelectedPlugin(null)}
         onDelete={onDeletePlugin}
+        onReload={onReloadPlugin}
+        onEdit={selectedPlugin ? () => openEditor(selectedPlugin) : undefined}
       />
 
       {/* 插件配置对话框 */}

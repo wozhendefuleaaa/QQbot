@@ -511,3 +511,13 @@ export function useRemoveYunzaiAdmin() {
     },
   });
 }
+
+// 插件更新检测
+export function useCheckUpdates() {
+  return useQuery({
+    queryKey: ['market', 'updates'],
+    queryFn: () => api<{ success: boolean; data: import('../types').PluginUpdate[] }>('/api/plugins/market/check-updates'),
+    staleTime: 5 * 60 * 1000, // 5分钟内不会重新请求
+    refetchOnWindowFocus: false,
+  });
+}

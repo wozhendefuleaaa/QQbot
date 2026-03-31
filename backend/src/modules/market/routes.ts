@@ -528,6 +528,52 @@ app.get('/api/plugins/market/list', async (_req: Request, res: Response) => {
   });
 
   /**
+   * 获取市场统计信息 (必须在 /:id 之前定义)
+   * GET /api/plugins/market/stats
+   */
+  app.get('/api/plugins/market/stats', async (_req: Request, res: Response) => {
+    try {
+      const stats = await getMarketStats();
+      res.json({ success: true, data: stats });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  /**
+   * 获取安装日志 (必须在 /:id 之前定义)
+   * GET /api/plugins/market/logs
+   */
+  app.get('/api/plugins/market/logs', (_req: Request, res: Response) => {
+    try {
+      const logs = readInstallLogs();
+      res.json({
+        success: true,
+        data: {
+          items: logs,
+          total: logs.length,
+        }
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  /**
+   * 清空安装日志 (必须在 /:id 之前定义)
+   * DELETE /api/plugins/market/logs
+   */
+  app.delete('/api/plugins/market/logs', (_req: Request, res: Response) => {
+    try {
+      writeInstallLogs([]);
+      addSystemLog('INFO', 'market', '安装日志已清空');
+      res.json({ success: true, message: '日志已清空' });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  /**
    * 获取单个插件详情
    * GET /api/plugins/market/:id
    */
@@ -570,7 +616,7 @@ app.get('/api/plugins/market/list', async (_req: Request, res: Response) => {
    */
   app.post('/api/plugins/market/install', async (req: Request, res: Response) => {
     try {
-      const { pluginId, downloadUrl } = req.body as { pluginId?: string; downloadUrl?: string };
+      const { pluginId, downloadUrl, pluginName } = req.body as { pluginId?: string; downloadUrl?: string; pluginName?: string };
       
       if (!pluginId || !downloadUrl) {
         res.status(400).json({ success: false, error: 'pluginId 和 downloadUrl 为必填项' });
@@ -586,6 +632,9 @@ app.get('/api/plugins/market/list', async (_req: Request, res: Response) => {
         }
       }
       
+      // 记录安装开始时间
+      recordInstallStart(pluginId);
+      
       // 初始化进度
       const progress: InstallProgress = {
         pluginId,
@@ -595,8 +644,14 @@ app.get('/api/plugins/market/list', async (_req: Request, res: Response) => {
       };
       installProgressMap.set(pluginId, progress);
       
+      // 获取插件名称
+      const displayName = pluginName || pluginId;
+      
       // 异步执行安装流程
-      installPluginAsync(pluginId, downloadUrl).catch(err => {
+      installPluginAsync(pluginId, downloadUrl).then(() => {
+        // 安装成功，记录日志
+        addInstallLog(pluginId, displayName, 'success', '安装成功');
+      }).catch(err => {
         const p = installProgressMap.get(pluginId);
         if (p) {
           p.status = 'failed';
@@ -604,6 +659,8 @@ app.get('/api/plugins/market/list', async (_req: Request, res: Response) => {
           p.message = `安装失败: ${err.message}`;
           addSystemLog('ERROR', 'market', `插件 ${pluginId} 安装失败: ${err.message}`);
         }
+        // 安装失败，记录日志
+        addInstallLog(pluginId, displayName, 'failed', `安装失败: ${err.message}`, err.message);
       });
       
       res.json({ success: true, message: '安装任务已启动', pluginId });
@@ -680,6 +737,7 @@ app.get('/api/plugins/market/list', async (_req: Request, res: Response) => {
       res.status(500).json({ success: false, error: (err as Error).message });
     }
   });
+
 }
 
 /**
@@ -872,4 +930,168 @@ function updateProgress(
     progress,
     message,
   });
+}
+
+// ==================== 安装日志系统 ====================
+
+interface InstallLog {
+  id: string;
+  pluginId: string;
+  pluginName: string;
+  status: 'success' | 'failed';
+  message: string;
+  duration: number;  // 安装耗时（毫秒）
+  timestamp: string;
+  error?: string;
+}
+
+const INSTALL_LOGS_FILE = path.join(process.cwd(), 'data', 'install-logs.json');
+const MAX_LOGS = 100;  // 最多保留100条日志
+
+// 安装开始时间记录
+const installStartTimes = new Map<string, number>();
+
+/**
+ * 读取安装日志
+ */
+function readInstallLogs(): InstallLog[] {
+  try {
+    if (fs.existsSync(INSTALL_LOGS_FILE)) {
+      const data = fs.readFileSync(INSTALL_LOGS_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    addSystemLog('WARN', 'market', `读取安装日志失败: ${(err as Error).message}`);
+  }
+  return [];
+}
+
+/**
+ * 写入安装日志
+ */
+function writeInstallLogs(logs: InstallLog[]): void {
+  try {
+    // 确保目录存在
+    const dir = path.dirname(INSTALL_LOGS_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(INSTALL_LOGS_FILE, JSON.stringify(logs, null, 2));
+  } catch (err) {
+    addSystemLog('WARN', 'market', `写入安装日志失败: ${(err as Error).message}`);
+  }
+}
+
+/**
+ * 添加安装日志
+ */
+function addInstallLog(
+  pluginId: string,
+  pluginName: string,
+  status: 'success' | 'failed',
+  message: string,
+  error?: string
+): void {
+  const logs = readInstallLogs();
+  
+  // 计算安装耗时
+  const startTime = installStartTimes.get(pluginId);
+  const duration = startTime ? Date.now() - startTime : 0;
+  installStartTimes.delete(pluginId);
+  
+  const newLog: InstallLog = {
+    id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    pluginId,
+    pluginName,
+    status,
+    message,
+    duration,
+    timestamp: new Date().toISOString(),
+    error,
+  };
+  
+  // 添加到开头
+  logs.unshift(newLog);
+  
+  // 限制日志数量
+  if (logs.length > MAX_LOGS) {
+    logs.splice(MAX_LOGS);
+  }
+  
+  writeInstallLogs(logs);
+  addSystemLog('INFO', 'market', `记录安装日志: ${pluginId} - ${status}`);
+}
+
+/**
+ * 记录安装开始
+ */
+function recordInstallStart(pluginId: string): void {
+  installStartTimes.set(pluginId, Date.now());
+}
+
+// ==================== 统计系统 ====================
+
+interface MarketStats {
+  totalPlugins: number;
+  totalDownloads: number;
+  localInstalls: number;
+  categories: Record<string, number>;
+  recentInstalls: InstallLog[];
+  popularPlugins: Array<{
+    id: string;
+    name: string;
+    downloads: number;
+  }>;
+}
+
+/**
+ * 获取市场统计信息
+ */
+async function getMarketStats(): Promise<MarketStats> {
+  // 获取市场索引
+  const index = await fetchMarketIndex();
+  
+  // 获取本地已安装插件
+  const registryPath = path.join(process.cwd(), 'data', 'plugins.json');
+  let localPlugins: Array<{ id: string; name: string }> = [];
+  try {
+    if (fs.existsSync(registryPath)) {
+      localPlugins = JSON.parse(fs.readFileSync(registryPath, 'utf-8'));
+    }
+  } catch { /* ignore */ }
+  
+  const localPluginIds = new Set(localPlugins.map(p => p.id));
+  
+  // 计算分类统计
+  const categories: Record<string, number> = {};
+  for (const plugin of index.plugins) {
+    const cat = plugin.category || '其他';
+    categories[cat] = (categories[cat] || 0) + 1;
+  }
+  
+  // 计算总下载量
+  const totalDownloads = index.plugins.reduce((sum, p) => sum + (p.downloads || 0), 0);
+  
+  // 获取最近安装记录
+  const logs = readInstallLogs();
+  const recentInstalls = logs.slice(0, 10);
+  
+  // 获取热门插件 Top 5
+  const popularPlugins = [...index.plugins]
+    .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+    .slice(0, 5)
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      downloads: p.downloads || 0,
+    }));
+  
+  return {
+    totalPlugins: index.plugins.length,
+    totalDownloads,
+    localInstalls: localPluginIds.size,
+    categories,
+    recentInstalls,
+    popularPlugins,
+  };
 }
