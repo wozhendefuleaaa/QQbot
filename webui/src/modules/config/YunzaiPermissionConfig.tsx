@@ -118,8 +118,9 @@ export function YunzaiPermissionConfig({ loading }: Props) {
                       <span>👑 {userId}</span>
                       <button
                         onClick={() => handleRemoveMaster(userId)}
-                        className="ml-1 hover:text-red-900 dark:hover:text-red-100"
+                        className="ml-1 hover:text-red-900 dark:hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                         aria-label={`移除主人 ${userId}`}
+                        tabIndex={0}
                       >
                         ×
                       </button>
@@ -165,8 +166,9 @@ export function YunzaiPermissionConfig({ loading }: Props) {
                       <span>🛡️ {userId}</span>
                       <button
                         onClick={() => handleRemoveAdmin(userId)}
-                        className="ml-1 hover:text-blue-900 dark:hover:text-blue-100"
+                        className="ml-1 hover:text-blue-900 dark:hover:text-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         aria-label={`移除管理员 ${userId}`}
+                        tabIndex={0}
                       >
                         ×
                       </button>

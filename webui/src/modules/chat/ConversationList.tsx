@@ -264,7 +264,7 @@ export function ConversationList({
                         : "bg-gradient-to-br from-green-400 to-green-600 text-white"
                     )}>
                       {conv.avatar ? (
-                        <img src={conv.avatar} alt={conv.peerName} className="w-full h-full rounded-full object-cover" />
+                        <img src={conv.avatar} alt={conv.peerName} width={40} height={40} className="w-full h-full rounded-full object-cover" />
                       ) : (
                         <span>{conv.peerName.charAt(0).toUpperCase()}</span>
                       )}

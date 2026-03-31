@@ -134,7 +134,7 @@ export function PluginCard({
           )}
 
           {/* 操作按钮 */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 md:gap-3">
             <Button
               size="sm"
               variant={plugin.enabled ? 'destructive' : 'default'}

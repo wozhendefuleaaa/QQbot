@@ -400,18 +400,20 @@ export function PluginPermissionMatrix({ loading }: Props) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-xs text-gray-600 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                className="text-xs text-gray-600 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                                 onClick={() => handleBatchToggle(groupId, true)}
                                 title="禁用所有插件"
+                                aria-label="禁用所有插件"
                               >
                                 全禁
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-xs text-gray-600 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                className="text-xs text-gray-600 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                                 onClick={() => handleBatchToggle(groupId, false)}
                                 title="启用所有插件"
+                                aria-label="启用所有插件"
                               >
                                 全启
                               </Button>
@@ -421,6 +423,7 @@ export function PluginPermissionMatrix({ loading }: Props) {
                               size="sm"
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 dark:text-red-400 dark:hover:text-red-300"
                               onClick={() => setGroupToDelete(groupId)}
+                              aria-label={`删除群组 ${getGroupDisplayName(groupId)}`}
                             >
                               删除
                             </Button>

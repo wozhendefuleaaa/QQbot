@@ -33,9 +33,16 @@ export function HelpTooltip({ content, children, position = 'top', className }: 
       className={cn("relative inline-flex", className)}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setIsVisible(true);
+        }
+      }}
+      onBlur={() => setIsVisible(false)}
     >
       {children || (
-        <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center text-xs cursor-help hover:bg-blue-200 dark:hover:bg-blue-900 transition-colors">
+        <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center text-xs cursor-help hover:bg-blue-200 dark:hover:bg-blue-900 transition-colors" role="button" aria-label="帮助提示" tabIndex={0}>
           ?
         </span>
       )}
@@ -123,12 +130,14 @@ export function EmptyState({ icon = '📭', title, description, action }: EmptyS
       <p className="text-sm text-black mb-4 max-w-sm">{description}</p>
       {action && (
         <button
+          type="button"
           onClick={action.onClick}
           className={cn(
             "px-4 py-2 rounded-lg text-sm font-medium",
             "bg-blue-500 hover:bg-blue-600 text-white",
-            "transition-colors"
+            "transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           )}
+          aria-label={action.label}
         >
           {action.label}
         </button>

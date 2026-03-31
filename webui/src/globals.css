@@ -219,6 +219,18 @@
   .animate-pulse-soft {
     animation: pulse-soft 2s ease-in-out infinite;
   }
+  
+  /* 尊重用户的 prefers-reduced-motion 设置 */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-slide-up,
+    .animate-slide-in-left,
+    .animate-slide-in-right,
+    .animate-scale-in,
+    .animate-pulse-soft {
+      animation: none;
+    }
+  }
 }
 
 /* 主题切换按钮动画 */
@@ -266,6 +278,15 @@
   
   .animate-glow-dark {
     animation: glow-dark 3s ease-in-out infinite;
+  }
+  
+  /* 尊重用户的 prefers-reduced-motion 设置 */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-twinkle,
+    .animate-glow-light,
+    .animate-glow-dark {
+      animation: none;
+    }
   }
 }
 
@@ -335,6 +356,14 @@
   
   .animate-fade-in-overlay {
     animation: fade-in-overlay 0.2s ease-out forwards;
+  }
+  
+  /* 尊重用户的 prefers-reduced-motion 设置 */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-slide-up-modal,
+    .animate-fade-in-overlay {
+      animation: none;
+    }
   }
 }
 
