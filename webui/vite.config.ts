@@ -49,5 +49,20 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['@radix-ui/react-slot', 'class-variance-authority', 'clsx', 'tailwind-merge'],
+          query: ['@tanstack/react-query'],
+          store: ['zustand'],
+          toast: ['sonner'],
+          charts: ['recharts'],
+          markdown: ['react-markdown'],
+        },
+      },
+    },
   }
 });

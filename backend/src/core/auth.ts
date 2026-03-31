@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { User, UserWithPassword, JwtPayload } from '../types.js';
-import { id, nowIso, readJsonFile, writeJsonFile } from './store.js';
+import { id, nowIso } from './store.js';
+import { readJsonFile, writeJsonFile } from './storage/base.js';
 import { existsSync } from 'fs';
 import { join } from 'path';
 

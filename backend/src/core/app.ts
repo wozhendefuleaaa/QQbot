@@ -17,6 +17,9 @@ import {
   nowIso,
   accounts
 } from './store.js';
+import { initDatabase, closeDatabase } from './storage/sqlite.js';
+import { migrateData } from './storage/migration.js';
+import { initRedis, closeRedis } from './cache/redis.js';
 import { loadAllPlugins } from './plugin-manager.js';
 import { registerAccountRoutes } from '../modules/accounts/routes.js';
 import { registerChatRoutes } from '../modules/chat/routes.js';
@@ -33,7 +36,7 @@ import { registerSseRoutes } from '../modules/sse/routes.js';
 import { registerAuthRoutes } from '../modules/auth/routes.js';
 import { registerMarketRoutes } from '../modules/market/routes.js';
 import { initializeDefaultAdmin } from './auth.js';
-import { createApiRateLimiter, errorHandler, notFoundHandler, authMiddleware } from './middleware/index.js';
+import { createApiRateLimiter, errorHandler, notFoundHandler, authMiddleware, securityMiddleware, httpsRedirectMiddleware } from './middleware/index.js';
 
 dotenv.config({ path: '../.env' });
 
@@ -41,6 +44,12 @@ const app = express();
 
 // 安全中间件：速率限制
 app.use(createApiRateLimiter());
+
+// 安全中间件：设置安全HTTP头
+app.use(securityMiddleware);
+
+// HTTPS重定向中间件（生产环境）
+app.use(httpsRedirectMiddleware);
 
 // CORS 配置 - 根据环境动态配置
 const corsOrigins = process.env.CORS_ORIGINS
@@ -163,6 +172,22 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 async function bootstrap() {
+  // 初始化数据库
+  try {
+    await initDatabase();
+    addPlatformLog('INFO', '数据库初始化成功');
+    
+    // 执行数据迁移
+    await migrateData();
+    addPlatformLog('INFO', '数据迁移完成');
+  } catch (error) {
+    addPlatformLog('ERROR', `数据库初始化失败: ${error}`);
+    process.exit(1);
+  }
+
+  // 初始化Redis
+  await initRedis();
+
   await loadAccountsFromDisk();
   await loadAppConfigFromDisk();
   await loadPluginsFromDisk();
@@ -212,6 +237,20 @@ async function setupProcessExitHooks() {
   const flushAndExit = async (signal: string) => {
     addSystemLog('INFO', 'framework', `收到进程信号 ${signal}，正在落盘聊天数据`);
     await flushSaveChatDataToDisk();
+    // 关闭数据库连接
+    try {
+      await closeDatabase();
+      addSystemLog('INFO', 'framework', '数据库连接已关闭');
+    } catch (error) {
+      addSystemLog('ERROR', 'framework', `关闭数据库连接失败: ${error}`);
+    }
+    // 关闭Redis连接
+    try {
+      await closeRedis();
+      addSystemLog('INFO', 'framework', 'Redis连接已关闭');
+    } catch (error) {
+      addSystemLog('ERROR', 'framework', `关闭Redis连接失败: ${error}`);
+    }
     process.exit(0);
   };
 
@@ -223,8 +262,22 @@ async function setupProcessExitHooks() {
     void flushAndExit('SIGTERM');
   });
 
-  process.on('beforeExit', () => {
-    void flushSaveChatDataToDisk();
+  process.on('beforeExit', async () => {
+    await flushSaveChatDataToDisk();
+    // 关闭数据库连接
+    try {
+      await closeDatabase();
+      addSystemLog('INFO', 'framework', '数据库连接已关闭');
+    } catch (error) {
+      addSystemLog('ERROR', 'framework', `关闭数据库连接失败: ${error}`);
+    }
+    // 关闭Redis连接
+    try {
+      await closeRedis();
+      addSystemLog('INFO', 'framework', 'Redis连接已关闭');
+    } catch (error) {
+      addSystemLog('ERROR', 'framework', `关闭Redis连接失败: ${error}`);
+    }
   });
 }
 

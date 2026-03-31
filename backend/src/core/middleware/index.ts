@@ -12,3 +12,4 @@ export {
 } from './error-handler.js';
 export { validateBody, validateQuery, validateParams, commonRules } from './validator.js';
 export { authMiddleware, optionalAuthMiddleware, requireRole, requireAdmin } from './auth.js';
+export { securityMiddleware, httpsRedirectMiddleware, sanitizeInput, sanitizeObject } from './security.js';
