@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
 
 @theme {
   --color-border: hsl(214.3 31.8% 91.4%);
@@ -6,28 +11,28 @@
   --color-ring: hsl(221.2 83.2% 53.3%);
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(222.2 84% 4.9%);
-  
+
   --color-primary: hsl(221.2 83.2% 53.3%);
   --color-primary-foreground: hsl(210 40% 98%);
-  
+
   --color-secondary: hsl(210 40% 96.1%);
   --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
-  
+
   --color-muted: hsl(210 40% 96.1%);
   --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  
+
   --color-accent: hsl(210 40% 96.1%);
   --color-accent-foreground: hsl(222.2 47.4% 11.2%);
-  
+
   --color-destructive: hsl(0 84.2% 60.2%);
   --color-destructive-foreground: hsl(210 40% 98%);
-  
+
   --color-card: hsl(0 0% 100%);
   --color-card-foreground: hsl(222.2 84% 4.9%);
-  
+
   --color-popover: hsl(0 0% 100%);
   --color-popover-foreground: hsl(222.2 84% 4.9%);
-  
+
   --radius: 0.5rem;
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -37,98 +42,103 @@
 @layer base {
   * {
     border-color: var(--color-border);
+    @apply border-border outline-ring/50;
   }
-  
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    @apply bg-background text-foreground;
   }
-  
+
   /* 移动端安全区域适配 */
   .safe-area-inset-top {
     padding-top: env(safe-area-inset-top, 0);
   }
-  
+
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
-  
+
   .safe-area-inset-left {
     padding-left: env(safe-area-inset-left, 0);
   }
-  
+
   .safe-area-inset-right {
     padding-right: env(safe-area-inset-right, 0);
   }
-  
+
   .dark {
     /* 主背景 - 使用深蓝灰色，比纯黑更柔和 */
     --color-background: hsl(220 20% 10%);
     --color-foreground: hsl(220 15% 92%);
-    
+
     /* 卡片背景 - 略微提亮，增加层次感 */
     --color-card: hsl(220 20% 13%);
     --color-card-foreground: hsl(220 15% 92%);
-    
+
     /* 弹出层 - 更亮一些，突出层级 */
     --color-popover: hsl(220 20% 15%);
     --color-popover-foreground: hsl(220 15% 95%);
-    
+
     /* 主色调 - 柔和的蓝色，降低饱和度避免刺眼 */
     --color-primary: hsl(215 65% 55%);
     --color-primary-foreground: hsl(0 0% 100%);
-    
+
     /* 次要色 - 中等灰度，用于次要按钮和元素 */
     --color-secondary: hsl(220 15% 22%);
     --color-secondary-foreground: hsl(220 15% 88%);
-    
+
     /* 静音色 - 用于背景装饰和禁用状态 */
     --color-muted: hsl(220 15% 18%);
     --color-muted-foreground: hsl(220 12% 65%);
-    
+
     /* 强调色 - 用于悬停和选中状态 */
     --color-accent: hsl(215 25% 25%);
     --color-accent-foreground: hsl(220 15% 92%);
-    
+
     /* 危险色 - 柔和的红色 */
     --color-destructive: hsl(0 55% 50%);
     --color-destructive-foreground: hsl(220 20% 98%);
-    
+
     /* 边框 - 微妙的可见度 */
     --color-border: hsl(220 15% 22%);
-    
+
     /* 输入框 - 略深于边框 */
     --color-input: hsl(220 18% 18%);
-    
+
     /* 焦点环 - 与主色调协调 */
     --color-ring: hsl(215 65% 55%);
   }
-  
+
   /* 深色模式下 text-black 自动转换为浅色 */
   .dark .text-black {
     color: var(--color-foreground) !important;
   }
-  
+
   .dark .text-gray-700,
   .dark .text-gray-800,
   .dark .text-gray-900 {
     color: var(--color-foreground) !important;
   }
-  
+
   .dark .text-gray-500,
   .dark .text-gray-600 {
     color: var(--color-muted-foreground) !important;
   }
-  
+
   .dark .text-gray-400 {
     color: hsl(220 10% 60%) !important;
   }
-  
+
   /* 深色模式下 placeholder 也需要调整 */
   .dark input::placeholder,
   .dark textarea::placeholder {
     color: var(--color-muted-foreground) !important;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
@@ -199,23 +209,23 @@
   .animate-fade-in {
     animation: fade-in 0.3s ease-out forwards;
   }
-  
+
   .animate-slide-up {
     animation: slide-up 0.3s ease-out forwards;
   }
-  
+
   .animate-slide-in-left {
     animation: slide-in-left 0.3s ease-out forwards;
   }
-  
+
   .animate-slide-in-right {
     animation: slide-in-right 0.3s ease-out forwards;
   }
-  
+
   .animate-scale-in {
     animation: scale-in 0.2s ease-out forwards;
   }
-  
+
   .animate-pulse-soft {
     animation: pulse-soft 2s ease-in-out infinite;
   }
@@ -259,11 +269,11 @@
   .animate-twinkle {
     animation: twinkle 2s ease-in-out infinite;
   }
-  
+
   .animate-glow-light {
     animation: glow-light 3s ease-in-out infinite;
   }
-  
+
   .animate-glow-dark {
     animation: glow-dark 3s ease-in-out infinite;
   }
@@ -275,20 +285,20 @@
     width: 6px;
     height: 6px;
   }
-  
+
   ::-webkit-scrollbar-track {
     background: transparent;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--muted-foreground) / 0.3);
     border-radius: 3px;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
   }
-  
+
   /* 响应式调整 */
   @media (max-width: 640px) {
     ::-webkit-scrollbar {
@@ -332,7 +342,7 @@
   .animate-slide-up-modal {
     animation: slide-up-modal 0.3s ease-out forwards;
   }
-  
+
   .animate-fade-in-overlay {
     animation: fade-in-overlay 0.2s ease-out forwards;
   }
@@ -350,7 +360,7 @@
       min-height: 44px;
       min-width: 44px;
     }
-    
+
     /* 小按钮例外 */
     button.btn-sm,
     button.text-xs,
@@ -358,25 +368,25 @@
       min-height: auto;
       min-width: auto;
     }
-    
+
     /* 禁用文本选择（防止误选） */
     .no-select {
       -webkit-user-select: none;
       user-select: none;
     }
-    
+
     /* 优化输入框 */
     input, textarea, select {
       font-size: 16px; /* 防止 iOS 缩放 */
     }
-    
+
     /* 移动端卡片优化 */
     .card-mobile {
       border-radius: 12px;
       margin: 8px;
       padding: 12px;
     }
-    
+
     /* 移动端列表项优化 */
     .list-item-mobile {
       padding: 12px 16px;
@@ -435,40 +445,40 @@
     .mobile-content {
       padding: 0.5rem 0.75rem;
     }
-    
+
     /* 移动端表格优化 */
     .mobile-table {
       display: block;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
-    
+
     /* 移动端表单优化 */
     .mobile-form {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
     }
-    
+
     .mobile-form-input {
       width: 100%;
       padding: 0.75rem;
       font-size: 1rem;
     }
-    
+
     /* 移动端按钮组 */
     .mobile-button-group {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
     }
-    
+
     /* 移动端隐藏滚动条但保持滚动功能 */
     .mobile-scroll-hidden {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    
+
     .mobile-scroll-hidden::-webkit-scrollbar {
       display: none;
     }
@@ -488,14 +498,14 @@
       max-height: 85vh;
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    
+
     .mobile-dialog-overlay {
       position: fixed;
       inset: 0;
       background-color: rgba(0, 0, 0, 0.5);
       animation: fade-in-overlay 0.2s ease-out forwards;
     }
-    
+
     .mobile-dialog-content {
       animation: slide-up-modal 0.3s ease-out forwards;
     }
@@ -523,7 +533,7 @@
       gap: 0.75rem;
       padding: 0.75rem;
     }
-    
+
     .mobile-card-grid-2 {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -544,11 +554,11 @@
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
     }
-    
+
     .mobile-tabs::-webkit-scrollbar {
       display: none;
     }
-    
+
     .mobile-tab {
       flex-shrink: 0;
       padding: 0.5rem 1rem;
@@ -556,12 +566,12 @@
       font-weight: 500;
       white-space: nowrap;
     }
-    
+
     .mobile-tab-active {
       border-bottom: 2px solid var(--color-primary);
       color: var(--color-primary);
     }
-    
+
     .mobile-tab-inactive {
       color: var(--color-muted-foreground);
     }
@@ -576,13 +586,13 @@
       padding: 0.5rem 0.75rem;
       border-radius: 1rem;
     }
-    
+
     .mobile-message-bubble-sent {
       background-color: var(--color-primary);
       color: var(--color-primary-foreground);
       border-bottom-right-radius: 0.25rem;
     }
-    
+
     .mobile-message-bubble-received {
       background-color: var(--color-muted);
       border-bottom-left-radius: 0.25rem;
@@ -604,4 +614,116 @@
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
   }
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
