@@ -1,4 +1,5 @@
 export type AccountStatus = 'DISABLED' | 'CONNECTING' | 'ONLINE' | 'OFFLINE';
+export type PlatformType = 'qq_official' | 'onebot_v11';
 export type MenuKey =
   | 'home'
   | 'accounts'
@@ -14,8 +15,10 @@ export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
 export type BotAccount = {
   id: string;
   name: string;
+  platformType?: PlatformType;
   appId: string;
   appSecretMasked: string;
+  onebotSelfId?: string;
   status: AccountStatus;
   createdAt: string;
   updatedAt: string;
@@ -77,6 +80,47 @@ export type PlatformLog = {
   createdAt: string;
 };
 
+export type OneBotStatusOverview = {
+  enabledAccounts: number;
+  onlineAccounts: number;
+  totalConnections: number;
+  lastEventAt: string | null;
+  totalTokens: number;
+  activeTokens: number;
+};
+
+export type OneBotConnectionInfo = {
+  connectionId: string;
+  accountId: string;
+  accountName: string;
+  selfId: string | null;
+  tokenId: string;
+  remoteAddress: string | null;
+  userAgent: string | null;
+  connectedAt: string;
+  lastSeenAt: string;
+  lastHeartbeatAt: string | null;
+};
+
+export type OneBotConnectionsResponse = {
+  items: OneBotConnectionInfo[];
+};
+
+export type OneBotTokenView = {
+  id: string;
+  name: string;
+  accountId: string;
+  enabled: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OneBotCreateTokenResponse = {
+  item: OneBotTokenView;
+  token: string;
+};
+
 // 插件权限矩阵 - 按机器人账号存储
 export type PluginPermissionMatrix = {
   accountId: string;                    // 机器人账号ID
@@ -128,6 +172,28 @@ export type PluginConfig = {
   allowPrivate: boolean;
   adminUserIds: string[];
   ownerIds?: string[];
+};
+
+export type PluginHealthEntry = {
+  id: string;
+  name: string;
+  version: string;
+  status: 'healthy' | 'error' | 'disabled';
+  enabled: boolean;
+  commandCount: number;
+  messageCount: number;
+  errorCount: number;
+  lastActiveAt: string | null;
+  loadedAt: string;
+  uptime: number;
+};
+
+export type PluginHealthOverview = {
+  total: number;
+  loaded: number;
+  errored: number;
+  disabled: number;
+  plugins: PluginHealthEntry[];
 };
 
 export type PluginCommand = {

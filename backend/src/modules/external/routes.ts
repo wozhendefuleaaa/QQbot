@@ -1,6 +1,7 @@
 import { Express, Request, Response, NextFunction } from 'express';
 import { openApiTokens, accounts, platformStatus, conversations, messages, appConfig, platformLogs } from '../../core/store.js';
-import { trySendToQQ, connectGateway, disconnectGateway } from '../platform/gateway.js';
+import { connectGateway, disconnectGateway } from '../platform/gateway.js';
+import { ensureAccountTransportReady, sendTextMessage } from '../platform/unified-sender.js';
 import { BotAccount } from '../../types.js';
 
 /**
@@ -116,7 +117,8 @@ export function registerExternalApiRoutes(app: Express): void {
     }
 
     try {
-      await trySendToQQ(account, targetId, message, msgId, targetType);
+      await ensureAccountTransportReady(account);
+      await sendTextMessage(account, targetId, message, msgId, targetType);
       res.json({ 
         ok: true, 
         timestamp: new Date().toISOString()

@@ -110,7 +110,17 @@ export async function loadAccountsFromDisk() {
     await ensureDataDir();
     const parsed = await readJsonFile<BotAccount[]>(accountsFilePath);
     if (Array.isArray(parsed)) {
-      accounts.splice(0, accounts.length, ...parsed.filter((x) => x?.id && x?.appId && x?.appSecret));
+      accounts.splice(
+        0,
+        accounts.length,
+        ...parsed.filter(
+          (x) =>
+            x?.id &&
+            x?.name &&
+            ((x.platformType === 'onebot_v11' && x.onebotSelfId) ||
+              ((x.platformType === 'qq_official' || !x.platformType) && x?.appId && x?.appSecret))
+        )
+      );
       addPlatformLog('INFO', `已加载账号存储：${accounts.length} 个`);
     }
   } catch (error) {
@@ -349,15 +359,13 @@ export async function fetchAppAccessToken(account: BotAccount, forceRefresh = fa
   return token;
 }
 
-export function ensureConversationForInbound(
+export function ensureConversationForInboundByAccount(
+  accountId: string,
   peerId: string,
   content: string,
   peerType: 'user' | 'group' = 'user',
   options?: { peerName?: string; inboundMsgId?: string | null }
 ) {
-  const accountId = platformStatus.connectedAccountId || accounts.find((a) => a.status === 'ONLINE')?.id || accounts[0]?.id;
-  if (!accountId) return null;
-
   let conv = conversations.find(
     (c) => c.accountId === accountId && c.peerId === peerId && c.peerType === peerType
   );
@@ -389,7 +397,6 @@ export function ensureConversationForInbound(
   };
 
   messages.push(msg);
-  // 限制消息数量上限为 10000 条
   if (messages.length > 10000) {
     messages.splice(0, messages.length - 10000);
   }
@@ -404,6 +411,17 @@ export function ensureConversationForInbound(
     conversationId: conv.id,
     messageId: msg.id
   };
+}
+
+export function ensureConversationForInbound(
+  peerId: string,
+  content: string,
+  peerType: 'user' | 'group' = 'user',
+  options?: { peerName?: string; inboundMsgId?: string | null }
+) {
+  const accountId = platformStatus.connectedAccountId || accounts.find((a) => a.status === 'ONLINE')?.id || accounts[0]?.id;
+  if (!accountId) return null;
+  return ensureConversationForInboundByAccount(accountId, peerId, content, peerType, options);
 }
 
 export function buildStatisticsSnapshot(): StatisticsSnapshot {

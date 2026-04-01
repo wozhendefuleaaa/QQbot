@@ -33,7 +33,7 @@ export function HomePage({ accounts, platformStatus, snapshot, plugins, config, 
 
   // 快速操作卡片
   const quickActions: { icon: string; title: string; description: string; action: MenuKey; color: string }[] = [
-    { icon: '🔌', title: '连接平台', description: '连接QQ机器人平台', action: 'platform', color: 'bg-blue-500' },
+    { icon: '🔌', title: '平台接入', description: '管理 QQ 官方与 OneBot v11 连接', action: 'platform', color: 'bg-blue-500' },
     { icon: '💬', title: '发送消息', description: '快速发送消息给好友或群', action: 'chat', color: 'bg-green-500' },
     { icon: '🧩', title: '插件管理', description: '管理机器人插件', action: 'plugins', color: 'bg-purple-500' },
     { icon: '⚙️', title: '系统配置', description: '配置机器人参数', action: 'config', color: 'bg-orange-500' },
@@ -47,7 +47,7 @@ export function HomePage({ accounts, platformStatus, snapshot, plugins, config, 
           欢迎使用 {config.webName || 'Wawa-QQbot'}
         </h1>
         <p className="text-sm md:text-base text-black">
-          {config.notice || '您的智能QQ机器人管理平台'}
+          {config.notice || '您的智能机器人管理平台，支持 QQ 官方与 OneBot v11'}
         </p>
       </div>
 
@@ -86,7 +86,7 @@ export function HomePage({ accounts, platformStatus, snapshot, plugins, config, 
       {/* 平台状态 */}
       <div className="bg-card rounded-xl border p-4 md:p-6 mb-6 md:mb-8 shadow-sm">
         <h2 className="text-base md:text-lg font-semibold text-card-foreground mb-3 md:mb-4 flex items-center gap-2">
-          <span>📡</span> 平台连接状态
+          <span>📡</span> 平台接入状态
         </h2>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-3 md:gap-4">
@@ -100,7 +100,7 @@ export function HomePage({ accounts, platformStatus, snapshot, plugins, config, 
                 {platformStatus.connected ? '已连接' : platformStatus.connecting ? '连接中...' : '未连接'}
               </p>
               <p className="text-sm text-black">
-                {platformStatus.connectedAccountName || '无账号连接'}
+                {platformStatus.connectedAccountName || '当前无 QQ 官方账号连接，可切换到平台页查看 OneBot 状态'}
               </p>
             </div>
           </div>
@@ -147,7 +147,7 @@ export function HomePage({ accounts, platformStatus, snapshot, plugins, config, 
             </div>
             <div>
               <h3 className="text-sm md:text-base font-medium text-card-foreground">添加机器人账号</h3>
-              <p className="text-xs md:text-sm text-black">在账号管理中添加您的QQ机器人账号信息</p>
+              <p className="text-xs md:text-sm text-black">在账号管理中添加 QQ 官方或 OneBot v11 机器人账号信息</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -155,8 +155,8 @@ export function HomePage({ accounts, platformStatus, snapshot, plugins, config, 
               2
             </div>
             <div>
-              <h3 className="text-sm md:text-base font-medium text-card-foreground">连接QQ平台</h3>
-              <p className="text-xs md:text-sm text-black">启动账号并连接到QQ官方机器人平台</p>
+              <h3 className="text-sm md:text-base font-medium text-card-foreground">接入消息平台</h3>
+              <p className="text-xs md:text-sm text-black">QQ 官方账号可直接连接，OneBot v11 账号可创建 Token 并等待反向 WebSocket 接入</p>
             </div>
           </div>
           <div className="flex gap-3">

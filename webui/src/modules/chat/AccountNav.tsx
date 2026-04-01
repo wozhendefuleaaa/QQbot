@@ -66,7 +66,7 @@ export function AccountNav({
           </div>
         ) : (
           accounts.map((account) => {
-            const isConnected = platformConnectedId === account.id;
+            const isConnected = platformConnectedId === account.id || account.status === 'ONLINE';
             const isSelected = selectedAccountId === account.id;
             
             return (

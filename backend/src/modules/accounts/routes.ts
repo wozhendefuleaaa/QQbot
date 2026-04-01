@@ -34,6 +34,7 @@ export function registerAccountRoutes(app: Express) {
     const item: BotAccount = {
       id: id('acc'),
       name,
+      platformType: 'qq_official',
       appId,
       appSecret,
       appSecretMasked: maskSecret(appSecret),
@@ -59,6 +60,11 @@ export function registerAccountRoutes(app: Express) {
     item.updatedAt = nowIso();
     await saveAccountsToDisk();
 
+    if (item.platformType === 'onebot_v11') {
+      res.json(toPublicAccount(item));
+      return;
+    }
+ 
     // 自动触发平台连接
     try {
       await connectGateway(item.id);

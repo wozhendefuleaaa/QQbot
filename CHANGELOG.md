@@ -1,5 +1,34 @@
 # 更新日志 (Changelog)
 
+## [1.15.0] - 2026-04-01
+
+### 新增
+
+#### 🔁 OneBot v11 反向 WebSocket 接入与 WebUI 联调
+
+- **OneBot WebUI 管理页**
+  - 扩展 [`webui/src/modules/platform/PlatformPanel.tsx`](webui/src/modules/platform/PlatformPanel.tsx)
+  - 新增 QQ 官方 / OneBot v11 双标签管理视图
+  - 新增 OneBot 状态总览、实时连接列表、Token 创建与一次性明文展示
+
+- **前端类型与页面接线**
+  - 扩展 [`webui/src/types.ts`](webui/src/types.ts) 的 OneBot 账号、连接、状态、Token 类型
+  - 更新 [`webui/src/App.tsx`](webui/src/App.tsx) 接入 `/api/onebot/status`、`/api/onebot/connections`、`/api/onebot/tokens`
+  - 更新 [`webui/src/modules/accounts/AccountsPanel.tsx`](webui/src/modules/accounts/AccountsPanel.tsx) 支持创建 OneBot v11 账号
+  - 更新 [`webui/src/modules/home/HomePage.tsx`](webui/src/modules/home/HomePage.tsx) 文案，统一覆盖 QQ 官方与 OneBot v11
+
+### 修复
+
+- **OneBot 账号重启后丢失**
+  - 修复 [`backend/src/core/store.ts`](backend/src/core/store.ts) 中的账号加载过滤条件
+  - OneBot v11 账号不再因为 `appId` / `appSecret` 为空而在磁盘加载时被错误过滤
+
+### 技术细节
+
+- 前端平台页轮询同步接入 OneBot 状态与连接信息
+- OneBot Token 创建后立即刷新状态，并在界面中提示“仅显示一次”
+- 已通过开发环境热更新验证后端与前端联调链路
+
 ## [1.14.0] - 2026-03-26
 
 ### 新增

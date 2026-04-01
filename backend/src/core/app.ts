@@ -25,6 +25,7 @@ import { registerLogRoutes } from '../modules/logs/routes.js';
 import { registerOpenApiRoutes } from '../modules/openapi/routes.js';
 import { registerPlatformRoutes } from '../modules/platform/routes.js';
 import { registerPluginRoutes } from '../modules/plugins/routes.js';
+import { registerOneBotRoutes } from '../modules/onebot/routes.js';
 import { registerQuickReplyRoutes } from '../modules/quickreply/routes.js';
 import { registerStatisticsRoutes } from '../modules/statistics/routes.js';
 import { registerGroupRoutes } from '../modules/group/routes.js';
@@ -155,6 +156,7 @@ registerStatisticsRoutes(app);
 registerOpenApiRoutes(app);
 registerQuickReplyRoutes(app);
 registerGroupRoutes(app);
+registerOneBotRoutes(app);
 
 // 404 处理
 app.use(notFoundHandler);
@@ -180,10 +182,13 @@ async function bootstrap() {
     addSystemLog('ERROR', 'plugin', `加载插件失败: ${error}`);
   }
 
-  app.listen(port, () => {
+  const server = app.listen(port, async () => {
     addPlatformLog('INFO', `backend listening on :${port}`);
+
+    const { initOneBotServer } = await import('../modules/onebot/server.js');
+    initOneBotServer(server);
     
-    // 自动连接第一个有效账号
+    // 自动连接第一个 QQ 官方账号
     autoConnectFirstAccount();
   });
 }

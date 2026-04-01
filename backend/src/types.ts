@@ -1,12 +1,15 @@
 export type AccountStatus = 'DISABLED' | 'CONNECTING' | 'ONLINE' | 'OFFLINE';
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
+export type PlatformType = 'qq_official' | 'onebot_v11';
 
 export type BotAccount = {
   id: string;
   name: string;
+  platformType?: PlatformType;
   appId: string;
   appSecret: string;
   appSecretMasked: string;
+  onebotSelfId?: string;
   status: AccountStatus;
   createdAt: string;
   updatedAt: string;

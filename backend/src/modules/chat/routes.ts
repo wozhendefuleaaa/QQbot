@@ -10,7 +10,7 @@ import {
   scheduleSaveChatDataToDisk,
   setPlatformError
 } from '../../core/store.js';
-import { trySendToQQ, recallMessage, uploadImage, sendImageMessage } from '../platform/gateway.js';
+import { ensureAccountTransportReady, recallPlatformMessage, sendPlatformImageMessage, sendTextMessage, uploadPlatformImage } from '../platform/unified-sender.js';
 
 export function registerChatRoutes(app: Express) {
   app.get('/api/conversations', (req, res) => {
@@ -76,9 +76,10 @@ export function registerChatRoutes(app: Express) {
       return;
     }
 
-    // 检查实际的 WebSocket 连接状态，而非仅账号标记状态
-    if (!platformStatus.connected || platformStatus.connectedAccountId !== accountId) {
-      res.status(400).json({ error: '平台未连接或连接的不是当前账号，请先启动账号或检查连接状态' });
+    try {
+      await ensureAccountTransportReady(account);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
       return;
     }
 
@@ -119,7 +120,7 @@ export function registerChatRoutes(app: Express) {
     scheduleSaveChatDataToDisk();
 
     try {
-      const result = await trySendToQQ(
+      const result = await sendTextMessage(
         account,
         targetId,
         text,
@@ -133,7 +134,7 @@ export function registerChatRoutes(app: Express) {
         accepted: true,
         messageId: msg.id,
         conversationId: conv.id,
-        status: result.mode === 'platform' ? 'sent_to_platform' : 'sent_mock',
+        status: result.mode === 'onebot_v11' ? 'sent_to_onebot' : 'sent_to_platform',
         messageStatus: 'sent'
       });
     } catch (error) {
@@ -281,9 +282,10 @@ export function registerChatRoutes(app: Express) {
       return;
     }
 
-    // 检查平台连接状态
-    if (!platformStatus.connected || platformStatus.connectedAccountId !== msg.accountId) {
-      res.status(400).json({ error: '平台未连接，无法撤回消息' });
+    try {
+      await ensureAccountTransportReady(account);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
       return;
     }
 
@@ -298,7 +300,7 @@ export function registerChatRoutes(app: Express) {
       // 调用 QQ API 撤回消息
       // 注意：QQ API 撤回消息需要使用平台返回的消息 ID，而非本地 ID
       // 这里我们使用 msg.id 作为临时方案，实际可能需要存储平台消息 ID
-      const result = await recallMessage(account, conv.peerId, id, conv.peerType);
+      const result = await recallPlatformMessage(account, conv.peerId, id, conv.peerType);
 
       if (result.success) {
         // 从本地存储中删除消息
@@ -336,9 +338,10 @@ export function registerChatRoutes(app: Express) {
       return;
     }
 
-    // 检查平台连接状态
-    if (!platformStatus.connected || platformStatus.connectedAccountId !== accountId) {
-      res.status(400).json({ error: '平台未连接，无法发送图片' });
+    try {
+      await ensureAccountTransportReady(account);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
       return;
     }
 
@@ -363,7 +366,7 @@ export function registerChatRoutes(app: Express) {
       const fileName = Array.isArray(file) ? file[0].name : file.name;
 
       // 1. 上传图片到 QQ 服务器
-      const uploadResult = await uploadImage(account, targetId, fileBuffer, fileName, resolvedTargetType);
+      const uploadResult = await uploadPlatformImage(account, targetId, fileBuffer, fileName, resolvedTargetType);
 
       if (!uploadResult.success || !uploadResult.fileInfo) {
         res.status(500).json({ error: '图片上传失败' });
@@ -371,7 +374,7 @@ export function registerChatRoutes(app: Express) {
       }
 
       // 2. 发送图片消息
-      const sendResult = await sendImageMessage(account, targetId, uploadResult.fileInfo, resolvedTargetType);
+      const sendResult = await sendPlatformImageMessage(account, targetId, uploadResult.fileInfo, resolvedTargetType);
 
       if (sendResult.success) {
         // 查找或创建会话

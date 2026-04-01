@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PluginInfo, PluginConfig } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Package, Upload, Plus, Store, Puzzle } from 'lucide-react';
+import { Package, Upload, Plus, Store, Puzzle, Activity } from 'lucide-react';
 import { PluginStats } from './PluginStats';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginCard } from './PluginCard';
@@ -10,6 +10,7 @@ import { PluginConfigDialog } from './PluginConfigDialog';
 import { PluginUploadDialog } from './PluginUploadDialog';
 import { PluginCodeEditor } from './PluginCodeEditor';
 import { PluginMarketTab } from './PluginMarketTab';
+import { PluginHealthPanel } from './PluginHealthPanel';
 import { Button } from '@/components/ui/button';
 import { QuickTips, EmptyState } from '@/components/ui/help-tooltip';
 import { cn } from '@/lib/utils';
@@ -79,7 +80,7 @@ export function PluginsPanel({
   onSavePluginSource,
 }: Props) {
   // 标签页状态
-  const [activeTab, setActiveTab] = useState<'installed' | 'market'>('installed');
+  const [activeTab, setActiveTab] = useState<'installed' | 'market' | 'health'>('installed');
 
   // 搜索和筛选状态
   const [searchQuery, setSearchQuery] = useState('');
@@ -238,6 +239,18 @@ export function PluginsPanel({
           <Store className="w-4 h-4" />
           插件市场
         </button>
+        <button
+          onClick={() => setActiveTab('health')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'health'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+          )}
+        >
+          <Activity className="w-4 h-4" />
+          健康监控
+        </button>
       </div>
 
       {/* 插件市场标签页 */}
@@ -250,6 +263,9 @@ export function PluginsPanel({
           }}
         />
       )}
+
+      {/* 插件健康监控标签页 */}
+      {activeTab === 'health' && <PluginHealthPanel />}
 
       {/* 已安装插件标签页 */}
       {activeTab === 'installed' && (

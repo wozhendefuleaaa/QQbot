@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Plugin, PluginContext, PluginConfig, MessageEvent, CommandDefinition, CommandPermission } from './plugin-types.js';
 import { addSystemLog, plugins as pluginRegistry, savePluginsToDisk, accounts, platformStatus, conversations, messages, appConfig } from './store.js';
-import { trySendToQQ } from '../modules/platform/gateway.js';
+import { sendTextMessage } from '../modules/platform/unified-sender.js';
 import { broadcastNewMessage } from '../modules/sse/routes.js';
 import { Message } from '../types.js';
 import { isYunzaiPlugin, loadYunzaiPlugin, initYunzaiGlobals, YunzaiPlugin, createYunzaiBot, createYunzaiEvent, convertYunzaiPlugin } from './yunzai/index.js';
@@ -46,10 +46,13 @@ let helpCommandCache: string | null = null;
 /**
  * 创建插件上下文
  */
-function createPluginContext(pluginId: string, replyInfo?: { targetId: string; targetType: 'user' | 'group'; msgId?: string }): PluginContext {
+function createPluginContext(
+  pluginId: string,
+  replyInfo?: { accountId?: string; targetId: string; targetType: 'user' | 'group'; msgId?: string }
+): PluginContext {
   return {
     sendMessage: async (targetId: string, targetType: 'user' | 'group', text: string) => {
-      const accountId = platformStatus.connectedAccountId;
+      const accountId = replyInfo?.accountId || platformStatus.connectedAccountId;
       if (!accountId) {
         throw new Error('平台未连接');
       }
@@ -57,19 +60,20 @@ function createPluginContext(pluginId: string, replyInfo?: { targetId: string; t
       if (!account) {
         throw new Error('未找到账号信息');
       }
-      // 如果没有指定 targetId，使用回复信息中的 targetId
       const finalTargetId = targetId || replyInfo?.targetId;
       const finalTargetType = targetType || replyInfo?.targetType;
       if (!finalTargetId) {
         throw new Error('未指定发送目标');
       }
-      // 使用传入的 msgId 或回复信息中的 msgId 进行回复
+      if (!finalTargetType) {
+        throw new Error('未指定发送目标类型');
+      }
       const msgId = replyInfo?.msgId;
-      await trySendToQQ(account, finalTargetId, text, msgId, finalTargetType);
-      
-      // 广播插件发送的消息到前端
-      // 查找对应的会话
-      const conv = conversations.find(c => c.peerId === finalTargetId);
+      await sendTextMessage(account, finalTargetId, text, msgId, finalTargetType);
+
+      const conv = conversations.find(
+        (c) => c.accountId === accountId && c.peerId === finalTargetId && c.peerType === finalTargetType
+      );
       if (conv) {
         const outboundMsg: Message = {
           id: `plugin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -77,18 +81,17 @@ function createPluginContext(pluginId: string, replyInfo?: { targetId: string; t
           conversationId: conv.id,
           direction: 'out',
           text,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          status: 'sent'
         };
-        // 添加到消息存储
         messages.push(outboundMsg);
-        // 广播到前端
         broadcastNewMessage(conv.id, outboundMsg);
       }
     },
     log: (level: 'info' | 'warn' | 'error', message: string) => {
       addSystemLog(level.toUpperCase() as 'INFO' | 'WARN' | 'ERROR', 'plugin', `[${pluginId}] ${message}`);
     },
-    getConnectedAccountId: () => platformStatus.connectedAccountId
+    getConnectedAccountId: () => replyInfo?.accountId || platformStatus.connectedAccountId
   };
 }
 
@@ -900,8 +903,8 @@ export async function dispatchMessage(message: Message, peerId?: string, peerTyp
     return false;
   }
   
-  // 获取当前连接的账号ID
-  const currentAccountId = platformStatus.connectedAccountId;
+  // 获取当前消息所属账号ID，优先使用消息自身账号，其次回退到当前已连接账号
+  const currentAccountId = message.accountId || platformStatus.connectedAccountId;
   
   // 按优先级排序插件，并过滤掉被禁用的插件
   const sortedPlugins = Array.from(loadedPlugins.values())
@@ -910,7 +913,8 @@ export async function dispatchMessage(message: Message, peerId?: string, peerTyp
     .sort((a, b) => (a.priority || 100) - (b.priority || 100));
   
   // 构建回复信息，用于插件直接回复消息
-  const replyInfo: { targetId: string; targetType: 'user' | 'group'; msgId?: string } = {
+  const replyInfo: { accountId?: string; targetId: string; targetType: 'user' | 'group'; msgId?: string } = {
+    accountId: currentAccountId || undefined,
     targetId: peerId || senderId,
     targetType: isGroup ? 'group' : 'user',
     msgId: inboundMsgId // 使用传入的 inboundMsgId 进行被动回复

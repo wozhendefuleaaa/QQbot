@@ -1,12 +1,12 @@
 # QQ 机器人管理平台
 
-基于 QQ 官方机器人 API 的现代化管理平台，支持多账号管理、消息收发、插件系统和第三方集成。
+支持 QQ 官方机器人与 OneBot v11 反向 WebSocket 的现代化管理平台，支持多账号管理、消息收发、插件系统和第三方集成。
 
 ## 功能特性
 
 ### 核心功能
-- 🤖 **多账号管理** - 支持添加、管理多个 QQ 机器人账号
-- 💬 **消息收发** - 支持私聊、群聊消息的收发与历史记录
+- 🤖 **多账号管理** - 支持添加、管理多个 QQ 官方 / OneBot v11 机器人账号
+- 💬 **消息收发** - 支持 QQ 官方与 OneBot v11 的私聊、群聊消息收发与历史记录
 - 🔌 **插件系统** - 支持热加载、命令系统、权限控制
 - 🏪 **插件市场** - 在线浏览、一键安装社区插件
 - 🔗 **第三方集成** - 提供 RESTful API 供外部系统调用
@@ -23,6 +23,12 @@
 - ✅ 图片上传发送
 - ✅ 群管理（禁言/踢人）
 - ✅ 消息分页加载
+
+### OneBot v11 反向 WebSocket
+- ✅ **独立接入模型** - OneBot v11 使用独立账号类型与反向 WebSocket 服务
+- ✅ **Token 鉴权** - 支持为每个 OneBot 账号生成 Bearer Token 并自动绑定连接
+- ✅ **多连接状态** - 支持查看在线账号数、实时连接、最近心跳和客户端来源
+- ✅ **统一发送链路** - 发送消息时自动按账号类型选择 QQ 官方或 OneBot 出站实现
 
 ## 快速开始
 
@@ -47,7 +53,7 @@ cp .env.example .env
 
 ### 配置
 
-编辑 `.env` 文件，填入 QQ 机器人配置：
+编辑 `.env` 文件，按需填入 QQ 官方机器人配置：
 
 ```env
 # QQ 官方平台配置
@@ -58,6 +64,25 @@ QQ_CLIENT_SECRET=你的ClientSecret
 QQ_GATEWAY_INTENTS=0
 QQ_MESSAGE_API_TEMPLATE=
 ```
+
+
+### OneBot v11 接入说明
+
+OneBot v11 采用**反向 WebSocket**模式，不依赖 `.env` 中的 QQ 官方配置。接入步骤如下：
+
+1. 在 WebUI 的[`账号管理`](webui/src/modules/accounts/AccountsPanel.tsx)中创建 **OneBot v11** 账号并填写 `Self ID`
+2. 启动该账号，使其处于启用状态
+3. 在 WebUI 的[`平台页`](webui/src/modules/platform/PlatformPanel.tsx)切换到 **OneBot v11** 标签，为当前账号创建 Token
+4. 在 OneBot 客户端（如 NapCat、LLOneBot、go-cqhttp 兼容实现）中配置反向 WebSocket 地址：`ws://<host>:3000/onebot/v11/ws`
+5. 在请求头中携带 `Authorization: Bearer <token>` 发起连接
+
+连接建立后，可在平台页查看：
+- 在线账号数
+- 活动连接数
+- 最近心跳时间
+- 远端地址 / User-Agent
+
+> 说明：Token 明文仅在创建时显示一次，请妥善保存。
 
 ### 环境变量说明
 
@@ -101,9 +126,9 @@ docker compose up -d
 访问 `http://localhost:5173` 进入管理界面：
 
 ### 桌面端
-- **账号管理** - 添加、管理机器人账号
+- **账号管理** - 添加、管理 QQ 官方与 OneBot v11 机器人账号
 - **聊天管理** - 查看会话、发送消息、撤回消息
-- **平台连接** - 连接/断开 QQ 平台，查看日志
+- **平台接入** - 管理 QQ 官方连接、OneBot v11 Token、反向 WebSocket 状态与日志
 - **配置中心** - 系统配置、插件权限矩阵管理
   - 支持多账号插件权限配置
   - 批量启用/禁用插件

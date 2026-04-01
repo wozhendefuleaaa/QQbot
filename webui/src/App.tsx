@@ -20,6 +20,9 @@ import {
   ChatMessage,
   Conversation,
   MenuKey,
+  OneBotConnectionInfo,
+  OneBotCreateTokenResponse,
+  OneBotStatusOverview,
   OpenApiTokenView,
   PlatformLog,
   PlatformStatus,
@@ -61,6 +64,8 @@ function App() {
     lastError: null
   });
   const [platformLogs, setPlatformLogs] = useState<PlatformLog[]>([]);
+  const [oneBotStatus, setOneBotStatus] = useState<OneBotStatusOverview | null>(null);
+  const [oneBotConnections, setOneBotConnections] = useState<OneBotConnectionInfo[]>([]);
 
   const [config, setConfig] = useState<AppConfig>({
     webName: 'Wawa-QQbot',
@@ -78,6 +83,8 @@ function App() {
   const [openApiEnabled, setOpenApiEnabled] = useState(true);
   const [openApiTokens, setOpenApiTokens] = useState<OpenApiTokenView[]>([]);
   const [newTokenName, setNewTokenName] = useState('');
+  const [newOneBotTokenName, setNewOneBotTokenName] = useState('');
+  const [createdOneBotToken, setCreatedOneBotToken] = useState<OneBotCreateTokenResponse | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>('欢迎使用 QQ 机器人控制台。');
@@ -97,6 +104,7 @@ function App() {
   const showSuccess = (message: string) => showNotice(message, 'success');
 
   const [newAccount, setNewAccount] = useState({ name: '', appId: '', appSecret: '' });
+  const [newOneBotAccount, setNewOneBotAccount] = useState({ name: '', selfId: '' });
   const [sendForm, setSendForm] = useState<{ targetType: 'user' | 'group'; targetId: string; text: string }>({
     targetType: 'user',
     targetId: '',
@@ -147,6 +155,16 @@ function App() {
     setPlatformLogs(data.items);
   }, []);
 
+  const loadOneBotStatus = useCallback(async () => {
+    const data = await api<OneBotStatusOverview>('/api/onebot/status');
+    setOneBotStatus(data);
+  }, []);
+
+  const loadOneBotConnections = useCallback(async () => {
+    const data = await api<{ items: OneBotConnectionInfo[] }>('/api/onebot/connections');
+    setOneBotConnections(data.items);
+  }, []);
+
   const loadConfig = useCallback(async () => {
     const data = await api<AppConfig>('/api/config');
     setConfig(data);
@@ -185,6 +203,8 @@ function App() {
       loadAccounts(),
       loadPlatformStatus(),
       loadPlatformLogs(),
+      loadOneBotStatus(),
+      loadOneBotConnections(),
       loadConfig(),
       loadLogs('all'),
       loadStatistics(),
@@ -194,7 +214,7 @@ function App() {
     ])
       .catch((e: Error) => showError(e.message))
       .finally(() => setLoading(false));
-  }, [isAuthenticated, loadAccounts, loadPlatformStatus, loadPlatformLogs, loadConfig, loadLogs, loadStatistics, loadPlugins, loadPluginConfig, loadOpenApi]);
+  }, [isAuthenticated, loadAccounts, loadPlatformStatus, loadPlatformLogs, loadOneBotStatus, loadOneBotConnections, loadConfig, loadLogs, loadStatistics, loadPlugins, loadPluginConfig, loadOpenApi]);
 
   useEffect(() => {
     if (!isAuthenticated || !selectedAccountId) return;
@@ -212,6 +232,8 @@ function App() {
       loadPlatformStatus().catch(() => undefined);
       if (activeMenu === 'platform') {
         loadPlatformLogs().catch(() => undefined);
+        loadOneBotStatus().catch(() => undefined);
+        loadOneBotConnections().catch(() => undefined);
       }
       if (activeMenu === 'logs') {
         loadLogs().catch(() => undefined);
@@ -231,7 +253,7 @@ function App() {
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [isAuthenticated, activeMenu, logType, selectedAccountId, selectedConversationId, loadPlatformStatus, loadPlatformLogs, loadLogs, loadStatistics, loadConversations, loadMessages]);
+  }, [isAuthenticated, activeMenu, logType, selectedAccountId, selectedConversationId, loadPlatformStatus, loadPlatformLogs, loadOneBotStatus, loadOneBotConnections, loadLogs, loadStatistics, loadConversations, loadMessages]);
 
   const createAccount = async (e: FormEvent) => {
     e.preventDefault();
@@ -241,10 +263,68 @@ function App() {
         method: 'POST',
         body: JSON.stringify(newAccount)
       });
-      showSuccess(`账号"${created.name}"已创建，请点击启动。`);
+      showSuccess(`QQ 官方账号"${created.name}"已创建，请点击启动。`);
       setNewAccount({ name: '', appId: '', appSecret: '' });
       await loadAccounts();
       setSelectedAccountId(created.id);
+    } catch (err) {
+      showError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createOneBotAccount = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const created = await api<BotAccount>('/api/onebot/accounts', {
+        method: 'POST',
+        body: JSON.stringify(newOneBotAccount)
+      });
+      showSuccess(`OneBot 账号"${created.name}"已创建，请启动后为客户端创建 Token。`);
+      setNewOneBotAccount({ name: '', selfId: '' });
+      setCreatedOneBotToken(null);
+      await loadAccounts();
+      setSelectedAccountId(created.id);
+    } catch (err) {
+      showError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createOneBotToken = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedAccountId) {
+      showError('请先选择 OneBot 账号。');
+      return;
+    }
+
+    const selected = accounts.find((account) => account.id === selectedAccountId);
+    if (!selected || selected.platformType !== 'onebot_v11') {
+      showError('当前选中的不是 OneBot v11 账号。');
+      return;
+    }
+
+    if (!newOneBotTokenName.trim()) {
+      showError('请输入 OneBot Token 名称。');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const created = await api<OneBotCreateTokenResponse>('/api/onebot/tokens', {
+        method: 'POST',
+        body: JSON.stringify({
+          accountId: selectedAccountId,
+          name: newOneBotTokenName,
+        }),
+      });
+      setCreatedOneBotToken(created);
+      setNewOneBotTokenName('');
+      await Promise.all([loadOneBotStatus(), loadOneBotConnections()]);
+      showSuccess(`OneBot Token "${created.item.name}" 已创建，请立即保存。`);
     } catch (err) {
       showError((err as Error).message);
     } finally {
@@ -258,6 +338,9 @@ function App() {
     try {
       await api(`/api/accounts/${account.id}/${action}`, { method: 'POST' });
       await loadAccounts();
+      if (account.platformType === 'onebot_v11') {
+        await Promise.all([loadOneBotStatus(), loadOneBotConnections()]);
+      }
       showSuccess(`账号"${account.name}"已${action === 'start' ? '启动' : '停用'}。`);
     } catch (err) {
       showError((err as Error).message);
@@ -678,8 +761,11 @@ function App() {
             accounts={accounts}
             selectedAccountId={selectedAccountId}
             newAccount={newAccount}
+            newOneBotAccount={newOneBotAccount}
             onNewAccountChange={setNewAccount}
+            onNewOneBotAccountChange={setNewOneBotAccount}
             onCreateAccount={createAccount}
+            onCreateOneBotAccount={createOneBotAccount}
             onSelectAccount={setSelectedAccountId}
             onToggleAccount={toggleAccount}
           />
@@ -698,11 +784,21 @@ function App() {
           <PlatformPanel
             platformStatus={platformStatus}
             platformLogs={platformLogs}
+            accounts={accounts}
+            selectedAccountId={selectedAccountId}
+            oneBotStatus={oneBotStatus}
+            oneBotConnections={oneBotConnections}
+            tokenName={newOneBotTokenName}
+            createdToken={createdOneBotToken}
+            onTokenNameChange={setNewOneBotTokenName}
+            onCreateToken={createOneBotToken}
             onConnect={connectPlatform}
             onDisconnect={disconnectPlatform}
             onRefresh={() => {
               loadPlatformStatus().catch((e: Error) => showError(e.message));
               loadPlatformLogs().catch((e: Error) => showError(e.message));
+              loadOneBotStatus().catch((e: Error) => showError(e.message));
+              loadOneBotConnections().catch((e: Error) => showError(e.message));
             }}
           />
         )}

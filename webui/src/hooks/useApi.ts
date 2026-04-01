@@ -5,6 +5,10 @@ import {
   BotAccount,
   ChatMessage,
   Conversation,
+  OneBotConnectionInfo,
+  OneBotCreateTokenResponse,
+  OneBotStatusOverview,
+  OneBotTokenView,
   OpenApiTokenView,
   PlatformLog,
   PlatformStatus,
@@ -23,6 +27,8 @@ export const queryKeys = {
   messages: (conversationId: string) => ['messages', conversationId] as const,
   platformStatus: ['platformStatus'] as const,
   platformLogs: ['platformLogs'] as const,
+  onebotStatus: ['onebotStatus'] as const,
+  onebotConnections: ['onebotConnections'] as const,
   config: ['config'] as const,
   logs: (type: string) => ['logs', type] as const,
   statistics: ['statistics'] as const,
@@ -82,6 +88,22 @@ export function useCreateAccount() {
   });
 }
 
+export function useCreateOneBotAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (account: { name: string; selfId: string }) =>
+      api<BotAccount>('/api/onebot/accounts', {
+        method: 'POST',
+        body: JSON.stringify(account),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
+      queryClient.invalidateQueries({ queryKey: queryKeys.onebotStatus });
+    },
+  });
+}
+
 export function useToggleAccount() {
   const queryClient = useQueryClient();
   
@@ -90,6 +112,8 @@ export function useToggleAccount() {
       api(`/api/accounts/${accountId}/${action}`, { method: 'POST' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
+      queryClient.invalidateQueries({ queryKey: queryKeys.onebotStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.onebotConnections });
     },
   });
 }
@@ -165,6 +189,23 @@ export function usePlatformLogs(limit = 100) {
   });
 }
 
+export function useOneBotStatus() {
+  return useQuery({
+    queryKey: queryKeys.onebotStatus,
+    queryFn: () => api<OneBotStatusOverview>('/api/onebot/status'),
+    refetchInterval: 5000,
+  });
+}
+
+export function useOneBotConnections() {
+  return useQuery({
+    queryKey: queryKeys.onebotConnections,
+    queryFn: () => api<{ items: OneBotConnectionInfo[] }>('/api/onebot/connections'),
+    select: (data) => data.items,
+    refetchInterval: 5000,
+  });
+}
+
 export function useConnectPlatform() {
   const queryClient = useQueryClient();
   
@@ -190,6 +231,22 @@ export function useDisconnectPlatform() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.platformStatus });
       queryClient.invalidateQueries({ queryKey: queryKeys.platformLogs });
+    },
+  });
+}
+
+export function useCreateOneBotToken() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { accountId: string; name: string }) =>
+      api<OneBotCreateTokenResponse>('/api/onebot/tokens', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.onebotStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.onebotConnections });
     },
   });
 }
@@ -352,8 +409,9 @@ export function useAddGroupToMatrix() {
           body: JSON.stringify({ groupId }),
         }
       ),
-    onSuccess: (_, { accountId }) => {
-      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(variables.accountId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
     },
   });
 }
@@ -363,12 +421,15 @@ export function useRemoveGroupFromMatrix() {
 
   return useMutation({
     mutationFn: ({ accountId, groupId }: { accountId: string; groupId: string }) =>
-      api<{ ok: boolean }>(
+      api<{ ok: boolean; data: PluginPermissionMatrix }>(
         `/api/config/plugin-permissions/${accountId}/groups/${encodeURIComponent(groupId)}`,
-        { method: 'DELETE' }
+        {
+          method: 'DELETE',
+        }
       ),
-    onSuccess: (_, { accountId }) => {
-      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(variables.accountId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
     },
   });
 }
@@ -389,19 +450,19 @@ export function useTogglePluginPermission() {
       disabled: boolean;
     }) =>
       api<{ ok: boolean; data: PluginPermissionMatrix }>(
-        `/api/config/plugin-permissions/${accountId}/toggle`,
+        `/api/config/plugin-permissions/${accountId}/plugins`,
         {
-          method: 'PATCH',
+          method: 'POST',
           body: JSON.stringify({ groupId, pluginId, disabled }),
         }
       ),
-    onSuccess: (_, { accountId }) => {
-      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(variables.accountId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
     },
   });
 }
 
-// 批量切换插件权限
 export function useBatchTogglePluginPermission() {
   const queryClient = useQueryClient();
 
@@ -417,40 +478,32 @@ export function useBatchTogglePluginPermission() {
       pluginIds: string[];
       disabled: boolean;
     }) => {
-      // 批量发送多个请求
-      const results = await Promise.all(
+      await Promise.all(
         pluginIds.map((pluginId) =>
           api<{ ok: boolean; data: PluginPermissionMatrix }>(
-            `/api/config/plugin-permissions/${accountId}/toggle`,
+            `/api/config/plugin-permissions/${accountId}/plugins`,
             {
-              method: 'PATCH',
+              method: 'POST',
               body: JSON.stringify({ groupId, pluginId, disabled }),
             }
           )
         )
       );
-      return results;
     },
-    onSuccess: (_, { accountId }) => {
-      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(accountId) });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: pluginPermissionKeys.matrix(variables.accountId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
     },
   });
 }
 
-// 云崽权限配置相关
-const yunzaiPermissionKeys = {
-  all: ['yunzaiPermission'] as const,
-};
-
-// 获取云崽权限配置
 export function useYunzaiPermission() {
   return useQuery({
-    queryKey: yunzaiPermissionKeys.all,
+    queryKey: ['yunzaiPermission'],
     queryFn: () => api<YunzaiPermissionConfig>('/api/config/yunzai-permission'),
   });
 }
 
-// 添加主人
 export function useAddYunzaiMaster() {
   const queryClient = useQueryClient();
 
@@ -461,27 +514,27 @@ export function useAddYunzaiMaster() {
         body: JSON.stringify({ userId }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: yunzaiPermissionKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['yunzaiPermission'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
     },
   });
 }
 
-// 删除主人
 export function useRemoveYunzaiMaster() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (userId: string) =>
-      api<{ ok: boolean; data: YunzaiPermissionConfig }>(`/api/config/yunzai-permission/master/${userId}`, {
+      api<{ ok: boolean; data: YunzaiPermissionConfig }>(`/api/config/yunzai-permission/master/${encodeURIComponent(userId)}`, {
         method: 'DELETE',
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: yunzaiPermissionKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['yunzaiPermission'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
     },
   });
 }
 
-// 添加管理员
 export function useAddYunzaiAdmin() {
   const queryClient = useQueryClient();
 
@@ -492,32 +545,31 @@ export function useAddYunzaiAdmin() {
         body: JSON.stringify({ userId }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: yunzaiPermissionKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['yunzaiPermission'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
     },
   });
 }
 
-// 删除管理员
 export function useRemoveYunzaiAdmin() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (userId: string) =>
-      api<{ ok: boolean; data: YunzaiPermissionConfig }>(`/api/config/yunzai-permission/admin/${userId}`, {
+      api<{ ok: boolean; data: YunzaiPermissionConfig }>(`/api/config/yunzai-permission/admin/${encodeURIComponent(userId)}`, {
         method: 'DELETE',
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: yunzaiPermissionKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['yunzaiPermission'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
     },
   });
 }
 
-// 插件更新检测
 export function useCheckUpdates() {
   return useQuery({
-    queryKey: ['market', 'updates'],
-    queryFn: () => api<{ success: boolean; data: import('../types').PluginUpdate[] }>('/api/plugins/market/check-updates'),
-    staleTime: 5 * 60 * 1000, // 5分钟内不会重新请求
-    refetchOnWindowFocus: false,
+    queryKey: ['pluginUpdates'],
+    queryFn: () => api('/api/plugins/market/check-updates'),
+    enabled: false,
   });
 }
