@@ -65,15 +65,15 @@ function logConfigChange(level: LogLevel, message: string) {
 
 export function registerConfigRoutes(app: Express) {
   // 所有配置路由都需要认证
-  app.use('/config', authMiddleware);
+  app.use('/api/config', authMiddleware);
 
   // 获取配置
-  app.get('/config', (_req, res) => {
+  app.get('/api/config', (_req, res) => {
     res.json(appConfig);
   });
 
   // 更新配置 - 带速率限制
-  app.post('/config', 
+  app.post('/api/config', 
     configRateLimiter,
     validateBody(configUpdateSchema),
     async (req, res) => {
@@ -123,7 +123,7 @@ export function registerConfigRoutes(app: Express) {
   );
 
   // 获取指定账号的插件权限矩阵
-  app.get('/config/plugin-permissions/:accountId', 
+  app.get('/api/config/plugin-permissions/:accountId', 
     validateParams(accountIdSchema),
     (req, res) => {
       const { accountId } = req.params;
@@ -142,7 +142,7 @@ export function registerConfigRoutes(app: Express) {
   );
 
   // 保存指定账号的插件权限矩阵
-  app.post('/config/plugin-permissions/:accountId',
+  app.post('/api/config/plugin-permissions/:accountId',
     permissionRateLimiter,
     validateParams(accountIdSchema),
     validateBody(permissionMatrixSchema),
@@ -183,7 +183,7 @@ export function registerConfigRoutes(app: Express) {
   );
 
   // 更新单个单元格（某个群组中禁用/启用某个插件）
-  app.patch('/config/plugin-permissions/:accountId/toggle',
+  app.patch('/api/config/plugin-permissions/:accountId/toggle',
     toggleRateLimiter,
     validateParams(accountIdSchema),
     validateBody(togglePluginSchema),
@@ -234,7 +234,7 @@ export function registerConfigRoutes(app: Express) {
   );
 
   // 添加群组到账号的群组列表
-  app.post('/config/plugin-permissions/:accountId/groups',
+  app.post('/api/config/plugin-permissions/:accountId/groups',
     permissionRateLimiter,
     validateParams(accountIdSchema),
     validateBody(addGroupSchema),
@@ -263,7 +263,7 @@ export function registerConfigRoutes(app: Express) {
   );
 
   // 从账号的群组列表移除群组
-  app.delete('/config/plugin-permissions/:accountId/groups/:groupId',
+  app.delete('/api/config/plugin-permissions/:accountId/groups/:groupId',
     permissionRateLimiter,
     validateParams({ ...accountIdSchema, groupId: { required: true, type: 'string', minLength: 1, maxLength: 200 } }),
     async (req, res) => {
@@ -288,12 +288,12 @@ export function registerConfigRoutes(app: Express) {
       );
     
       // 获取云崽权限配置
-      app.get('/config/yunzai-permission', (_req, res) => {
+      app.get('/api/config/yunzai-permission', (_req, res) => {
         res.json(appConfig.yunzaiPermission || { masterIds: [], adminIds: [] });
       });
     
       // 更新云崽权限配置
-      app.post('/config/yunzai-permission',
+      app.post('/api/config/yunzai-permission',
         configRateLimiter,
         validateBody(yunzaiPermissionSchema),
         async (req, res) => {
@@ -319,7 +319,7 @@ export function registerConfigRoutes(app: Express) {
       );
     
       // 添加主人
-      app.post('/config/yunzai-permission/master',
+      app.post('/api/config/yunzai-permission/master',
         permissionRateLimiter,
         validateBody({ userId: { required: true, type: 'string', minLength: 1, maxLength: 100 } }),
         async (req, res) => {
@@ -340,7 +340,7 @@ export function registerConfigRoutes(app: Express) {
       );
     
       // 删除主人
-      app.delete('/config/yunzai-permission/master/:userId',
+      app.delete('/api/config/yunzai-permission/master/:userId',
         permissionRateLimiter,
         validateParams({ userId: { required: true, type: 'string', minLength: 1, maxLength: 100 } }),
         async (req, res) => {
@@ -360,7 +360,7 @@ export function registerConfigRoutes(app: Express) {
       );
     
       // 添加管理员
-      app.post('/config/yunzai-permission/admin',
+      app.post('/api/config/yunzai-permission/admin',
         permissionRateLimiter,
         validateBody({ userId: { required: true, type: 'string', minLength: 1, maxLength: 100 } }),
         async (req, res) => {
@@ -381,7 +381,7 @@ export function registerConfigRoutes(app: Express) {
       );
     
       // 删除管理员
-      app.delete('/config/yunzai-permission/admin/:userId',
+      app.delete('/api/config/yunzai-permission/admin/:userId',
         permissionRateLimiter,
         validateParams({ userId: { required: true, type: 'string', minLength: 1, maxLength: 100 } }),
         async (req, res) => {

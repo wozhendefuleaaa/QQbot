@@ -1,5 +1,4 @@
 import cors from 'cors';
-import dotenv from 'dotenv';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { Redis } from 'ioredis';
@@ -35,8 +34,10 @@ import { registerAuthRoutes } from '../modules/auth/routes.js';
 import { registerMarketRoutes } from '../modules/market/routes.js';
 import { initializeDefaultAdmin } from './auth.js';
 import { createApiRateLimiter, errorHandler, notFoundHandler, authMiddleware } from './middleware/index.js';
+import { loadEnv, getEnv, getEnvArray, getEnvBool, getEnvNumber } from './env.js';
 
-dotenv.config({ path: '../.env' });
+// 加载环境变量
+loadEnv();
 
 const app = express();
 
@@ -44,13 +45,11 @@ const app = express();
 app.use(createApiRateLimiter());
 
 // CORS 配置 - 根据环境动态配置
-const corsOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-  : (process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175']);
+const corsOrigins = getEnvArray('CORS_ORIGINS', getEnv('NODE_ENV') === 'production' ? [] : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175']);
 
 app.use(
   cors({
-    origin: process.env.NODE_ENV === 'production'
+    origin: getEnv('NODE_ENV') === 'production'
       ? corsOrigins
       : '*', // 开发环境允许所有来源
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -86,7 +85,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const port = Number(process.env.BACKEND_PORT || 3000);
+const port = getEnvNumber('BACKEND_PORT', 3000);
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -97,8 +96,8 @@ app.get('/health', (_req, res) => {
 });
 
 app.get('/ready', async (_req, res) => {
-  const mysqlUrl = process.env.MYSQL_URL;
-  const redisUrl = process.env.REDIS_URL;
+  const mysqlUrl = getEnv('MYSQL_URL');
+  const redisUrl = getEnv('REDIS_URL');
 
   const checks: Record<string, string> = {
     mysql: 'skipped',

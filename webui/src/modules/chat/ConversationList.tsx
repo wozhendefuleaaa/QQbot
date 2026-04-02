@@ -152,7 +152,7 @@ export function ConversationList({
 
         {/* 搜索框 */}
         <div className="relative">
-          <span className="absolute left-2.5 lg:left-3 top-1/2 -translate-y-1/2 text-black text-xs lg:text-sm">
+          <span className="absolute left-2.5 lg:left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs lg:text-sm">
             🔍
           </span>
           <Input
@@ -195,7 +195,7 @@ export function ConversationList({
         {/* 标签筛选 */}
         {allTags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-black">标签：</span>
+            <span className="text-xs text-muted-foreground">标签：</span>
             <div className="flex gap-1 flex-wrap">
               <Badge
                 variant={tagFilter === null ? 'default' : 'outline'}
@@ -219,7 +219,7 @@ export function ConversationList({
         )}
 
         {filterAccountId && (
-          <div className="text-xs text-black bg-muted/50 px-2 py-1 rounded">
+          <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
             📱 当前账号：{getAccountName(filterAccountId)}
           </div>
         )}
@@ -230,8 +230,8 @@ export function ConversationList({
         {filteredConversations.length === 0 ? (
           <div className="p-6 lg:p-8 text-center">
             <div className="text-3xl lg:text-4xl mb-2 lg:mb-3">📭</div>
-            <p className="text-black text-xs lg:text-sm">暂无会话</p>
-            <p className="text-black text-[10px] lg:text-xs mt-1">
+            <p className="text-foreground text-xs lg:text-sm">暂无会话</p>
+            <p className="text-muted-foreground text-[10px] lg:text-xs mt-1">
               {keyword ? '试试其他搜索词' : '开始聊天吧'}
             </p>
           </div>
@@ -287,20 +287,17 @@ export function ConversationList({
                       <span className="font-medium text-xs lg:text-sm truncate flex-1">
                         {conv.remark || conv.peerName}
                       </span>
-                      <span className="text-[10px] lg:text-xs text-black flex-shrink-0">
+                      <span className="text-[10px] lg:text-xs text-muted-foreground flex-shrink-0">
                         {fmtTime(conv.updatedAt)}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 lg:gap-2">
                       <Badge variant="outline" className={cn(
-                        "text-[10px] lg:text-xs px-1 lg:px-1.5 py-0 h-3.5 lg:h-4",
-                        conv.peerType === 'group'
-                          ? "border-blue-300 text-blue-600 dark:border-blue-600 dark:text-blue-400"
-                          : "border-green-300 text-green-600 dark:border-green-600 dark:text-green-400"
+                        "text-[10px] lg:text-xs px-1 lg:px-1.5 py-0 h-3.5 lg:h-4"
                       )}>
                         {conv.peerType === 'group' ? '👥 群' : '👤 私'}
                       </Badge>
-                      <p className="text-[10px] lg:text-xs text-black truncate flex-1">
+                      <p className="text-[10px] lg:text-xs text-muted-foreground truncate flex-1">
                         {conv.lastMessage || '暂无消息'}
                       </p>
                     </div>
@@ -323,7 +320,7 @@ export function ConversationList({
 
                     {/* 多账号模式下显示来源账号 */}
                     {!filterAccountId && (
-                      <span className="text-[10px] lg:text-xs text-black mt-0.5 lg:mt-1 block opacity-70">
+                      <span className="text-[10px] lg:text-xs text-muted-foreground mt-0.5 lg:mt-1 block opacity-70">
                         📱 {getAccountName(conv.accountId)}
                       </span>
                     )}
@@ -377,7 +374,7 @@ export function ConversationList({
                         </Badge>
                       ))}
                       {(conv.tags || []).length === 0 && (
-                        <span className="text-xs text-black">暂无标签</span>
+                        <span className="text-xs text-muted-foreground">暂无标签</span>
                       )}
                     </div>
                     <form
@@ -397,7 +394,7 @@ export function ConversationList({
                       </Button>
                     </form>
                     {(conv.tags || []).length >= 5 && (
-                      <span className="text-xs text-black mt-1 block">最多5个标签</span>
+                      <span className="text-xs text-muted-foreground mt-1 block">最多5个标签</span>
                     )}
                   </Card>
                 )}

@@ -16,14 +16,26 @@ import {
   SystemLog
 } from '../types.js';
 
+// 使用Map存储数据以提高查找速度
 export const accounts: BotAccount[] = [];
+export const accountsMap = new Map<string, BotAccount>();
+
 export const conversations: Conversation[] = [];
+export const conversationsMap = new Map<string, Conversation>();
+
 export const messages: Message[] = [];
+export const messagesMap = new Map<string, Message>();
+
 export const platformLogs: PlatformLog[] = [];
 export const systemLogs: SystemLog[] = [];
 export const plugins: PluginInfo[] = [];
+export const pluginsMap = new Map<string, PluginInfo>();
+
 export const openApiTokens: OpenApiToken[] = [];
+export const openApiTokensMap = new Map<string, OpenApiToken>();
+
 export const quickReplies: QuickReply[] = [];
+export const quickRepliesMap = new Map<string, QuickReply>();
 
 export const nowIso = () => new Date().toISOString();
 export const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -110,17 +122,22 @@ export async function loadAccountsFromDisk() {
     await ensureDataDir();
     const parsed = await readJsonFile<BotAccount[]>(accountsFilePath);
     if (Array.isArray(parsed)) {
-      accounts.splice(
-        0,
-        accounts.length,
-        ...parsed.filter(
-          (x) =>
-            x?.id &&
-            x?.name &&
-            ((x.platformType === 'onebot_v11' && x.onebotSelfId) ||
-              ((x.platformType === 'qq_official' || !x.platformType) && x?.appId && x?.appSecret))
-        )
+      const validAccounts = parsed.filter(
+        (x) =>
+          x?.id &&
+          x?.name &&
+          ((x.platformType === 'onebot_v11' && x.onebotSelfId) ||
+            ((x.platformType === 'qq_official' || !x.platformType) && x?.appId && x?.appSecret))
       );
+      
+      accounts.splice(0, accounts.length, ...validAccounts);
+      
+      // 更新accountsMap
+      accountsMap.clear();
+      for (const account of validAccounts) {
+        accountsMap.set(account.id, account);
+      }
+      
       addPlatformLog('INFO', `已加载账号存储：${accounts.length} 个`);
     }
   } catch (error) {
@@ -178,17 +195,26 @@ export async function saveAppConfigToDisk() {
 export async function loadPluginsFromDisk() {
   const parsed = await readJsonFile<PluginInfo[]>(pluginsFilePath);
   if (Array.isArray(parsed)) {
-    plugins.splice(0, plugins.length, ...parsed.filter((x) => x?.id && x?.name));
+    const validPlugins = parsed.filter((x) => x?.id && x?.name);
+    plugins.splice(0, plugins.length, ...validPlugins);
+    
+    // 更新pluginsMap
+    pluginsMap.clear();
+    for (const plugin of validPlugins) {
+      pluginsMap.set(plugin.id, plugin);
+    }
   }
   if (plugins.length === 0) {
-    plugins.push({
+    const newPlugin = {
       id: id('plg'),
       name: 'system-echo',
       enabled: true,
       version: '1.0.0',
       description: '示例插件：回显消息日志',
       updatedAt: nowIso()
-    });
+    };
+    plugins.push(newPlugin);
+    pluginsMap.set(newPlugin.id, newPlugin);
     await savePluginsToDisk();
   }
 }
@@ -201,7 +227,14 @@ export async function savePluginsToDisk() {
 export async function loadOpenApiTokensFromDisk() {
   const parsed = await readJsonFile<OpenApiToken[]>(openApiTokensFilePath);
   if (Array.isArray(parsed)) {
-    openApiTokens.splice(0, openApiTokens.length, ...parsed.filter((x) => x?.id && x?.token));
+    const validTokens = parsed.filter((x) => x?.id && x?.token);
+    openApiTokens.splice(0, openApiTokens.length, ...validTokens);
+    
+    // 更新openApiTokensMap
+    openApiTokensMap.clear();
+    for (const token of validTokens) {
+      openApiTokensMap.set(token.id, token);
+    }
   }
 }
 
@@ -213,7 +246,14 @@ export async function saveOpenApiTokensToDisk() {
 export async function loadQuickRepliesFromDisk() {
   const parsed = await readJsonFile<QuickReply[]>(quickRepliesFilePath);
   if (Array.isArray(parsed)) {
-    quickReplies.splice(0, quickReplies.length, ...parsed.filter((x) => x?.id && x?.text));
+    const validQuickReplies = parsed.filter((x) => x?.id && x?.text);
+    quickReplies.splice(0, quickReplies.length, ...validQuickReplies);
+    
+    // 更新quickRepliesMap
+    quickRepliesMap.clear();
+    for (const reply of validQuickReplies) {
+      quickRepliesMap.set(reply.id, reply);
+    }
   }
 }
 
@@ -228,20 +268,26 @@ export async function loadChatDataFromDisk() {
 
     const parsedConversations = await readJsonFile<Conversation[]>(conversationsFilePath);
     if (Array.isArray(parsedConversations)) {
-      conversations.splice(
-        0,
-        conversations.length,
-        ...parsedConversations.filter((x) => x?.id && x?.accountId && x?.peerId)
-      );
+      const validConversations = parsedConversations.filter((x) => x?.id && x?.accountId && x?.peerId);
+      conversations.splice(0, conversations.length, ...validConversations);
+      
+      // 更新conversationsMap
+      conversationsMap.clear();
+      for (const conv of validConversations) {
+        conversationsMap.set(conv.id, conv);
+      }
     }
 
     const parsedMessages = await readJsonFile<Message[]>(messagesFilePath);
     if (Array.isArray(parsedMessages)) {
-      messages.splice(
-        0,
-        messages.length,
-        ...parsedMessages.filter((x) => x?.id && x?.accountId && x?.conversationId)
-      );
+      const validMessages = parsedMessages.filter((x) => x?.id && x?.accountId && x?.conversationId);
+      messages.splice(0, messages.length, ...validMessages);
+      
+      // 更新messagesMap
+      messagesMap.clear();
+      for (const msg of validMessages) {
+        messagesMap.set(msg.id, msg);
+      }
     }
 
     addPlatformLog('INFO', `已加载聊天存储：会话 ${conversations.length} 条，消息 ${messages.length} 条`);
@@ -381,6 +427,7 @@ export function ensureConversationForInboundByAccount(
       updatedAt: nowIso()
     };
     conversations.unshift(conv);
+    conversationsMap.set(conv.id, conv);
   }
 
   if (options?.peerName) {
@@ -397,9 +444,16 @@ export function ensureConversationForInboundByAccount(
   };
 
   messages.push(msg);
+  messagesMap.set(msg.id, msg);
+  
   if (messages.length > 10000) {
-    messages.splice(0, messages.length - 10000);
+    const removedMessages = messages.splice(0, messages.length - 10000);
+    // 从messagesMap中删除被移除的消息
+    for (const removedMsg of removedMessages) {
+      messagesMap.delete(removedMsg.id);
+    }
   }
+  
   conv.lastMessage = content;
   conv.lastInboundMsgId = options?.inboundMsgId || conv.lastInboundMsgId || null;
   conv.updatedAt = nowIso();
@@ -426,12 +480,22 @@ export function ensureConversationForInbound(
 
 export function buildStatisticsSnapshot(): StatisticsSnapshot {
   const today = new Date().toISOString().slice(0, 10);
-  const inboundMessages = messages.filter((m) => m.direction === 'in').length;
-  const outboundMessages = messages.filter((m) => m.direction === 'out').length;
+  
+  // 计算消息数量（使用Map提高查找速度）
+  let inboundMessages = 0;
+  let outboundMessages = 0;
   
   // 计算会话类型分布
-  const privateConvs = conversations.filter((c) => c.peerType === 'user').length;
-  const groupConvs = conversations.filter((c) => c.peerType === 'group').length;
+  let privateConvs = 0;
+  let groupConvs = 0;
+  
+  for (const conv of conversations) {
+    if (conv.peerType === 'user') {
+      privateConvs++;
+    } else if (conv.peerType === 'group') {
+      groupConvs++;
+    }
+  }
   
   // 计算平台运行时间（秒）
   const platformUptime = platformStatus.connected && platformStatus.lastConnectedAt
@@ -444,7 +508,8 @@ export function buildStatisticsSnapshot(): StatisticsSnapshot {
   
   for (const msg of messages) {
     if (msg.direction === 'in') {
-      const conv = conversations.find((c) => c.id === msg.conversationId);
+      // 使用conversationsMap提高查找速度
+      const conv = conversationsMap.get(msg.conversationId);
       if (conv) {
         if (conv.peerType === 'group') {
           const count = groupMessageCounts.get(conv.id) || 0;
@@ -454,6 +519,9 @@ export function buildStatisticsSnapshot(): StatisticsSnapshot {
           userMessageCounts.set(conv.id, count + 1);
         }
       }
+      inboundMessages++;
+    } else {
+      outboundMessages++;
     }
   }
   
@@ -462,7 +530,8 @@ export function buildStatisticsSnapshot(): StatisticsSnapshot {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([id, messageCount]) => {
-      const conv = conversations.find((c) => c.id === id);
+      // 使用conversationsMap提高查找速度
+      const conv = conversationsMap.get(id);
       return { id, name: conv?.peerName || id, messageCount };
     });
   
@@ -471,7 +540,8 @@ export function buildStatisticsSnapshot(): StatisticsSnapshot {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([id, messageCount]) => {
-      const conv = conversations.find((c) => c.id === id);
+      // 使用conversationsMap提高查找速度
+      const conv = conversationsMap.get(id);
       return { id, name: conv?.peerName || id, messageCount };
     });
 

@@ -13,7 +13,7 @@ import {
 import { ensureAccountTransportReady, recallPlatformMessage, sendPlatformImageMessage, sendTextMessage, uploadPlatformImage } from '../platform/unified-sender.js';
 
 export function registerChatRoutes(app: Express) {
-  app.get('/conversations', (req, res) => {
+  app.get('/api/chat/conversations', (req, res) => {
     const accountId = req.query.accountId as string | undefined;
     if (!accountId) {
       res.status(400).json({ error: 'accountId 为必填项' });
@@ -27,7 +27,7 @@ export function registerChatRoutes(app: Express) {
     res.json({ items });
   });
 
-  app.get('/conversations/:id/messages', (req, res) => {
+  app.get('/api/chat/conversations/:id/messages', (req, res) => {
     const { before, limit = '50' } = req.query as { before?: string; limit?: string };
     const limitNum = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
 
@@ -50,7 +50,7 @@ export function registerChatRoutes(app: Express) {
     res.json({ items, hasMore });
   });
 
-  app.post('/messages/send', async (req, res) => {
+  app.post('/api/chat/messages/send', async (req, res) => {
     const { accountId, targetId, text, targetType } = req.body as {
       accountId?: string;
       targetId?: string;
@@ -154,7 +154,7 @@ export function registerChatRoutes(app: Express) {
   });
 
   // 更新会话标签（批量）
-  app.put('/conversations/:id/tags', (req, res) => {
+  app.put('/api/chat/conversations/:id/tags', (req, res) => {
     const { tags } = req.body as { tags?: string[] };
     const conv = conversations.find((c) => c.id === req.params.id);
 
@@ -184,7 +184,7 @@ export function registerChatRoutes(app: Express) {
   });
 
   // 添加单个标签
-  app.post('/conversations/:id/tags', (req, res) => {
+  app.post('/api/chat/conversations/:id/tags', (req, res) => {
     const { tag } = req.body as { tag?: string };
     const conv = conversations.find((c) => c.id === req.params.id);
 
@@ -229,7 +229,7 @@ export function registerChatRoutes(app: Express) {
   });
 
   // 删除单个标签
-  app.delete('/conversations/:id/tags/:tag', (req, res) => {
+  app.delete('/api/chat/conversations/:id/tags/:tag', (req, res) => {
     const conv = conversations.find((c) => c.id === req.params.id);
 
     if (!conv) {
@@ -261,7 +261,7 @@ export function registerChatRoutes(app: Express) {
   });
 
   // 撤回消息
-  app.delete('/messages/:id', async (req, res) => {
+  app.delete('/api/chat/messages/:id', async (req, res) => {
     const { id } = req.params;
     const msg = messages.find((m) => m.id === id);
 
@@ -320,7 +320,7 @@ export function registerChatRoutes(app: Express) {
   });
 
   // 上传并发送图片消息
-  app.post('/messages/upload-image', async (req, res) => {
+  app.post('/api/chat/messages/upload-image', async (req, res) => {
     const { accountId, targetId, targetType } = req.body as {
       accountId?: string;
       targetId?: string;

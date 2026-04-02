@@ -240,7 +240,7 @@ export function MessagePanel({
               )}
             </div>
             {conversation && (
-              <span className="text-[10px] lg:text-xs text-black truncate block">
+              <span className="text-[10px] lg:text-xs text-muted-foreground truncate block">
                 ID: {conversation.peerId}
               </span>
             )}
@@ -261,7 +261,7 @@ export function MessagePanel({
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1 text-black h-7 lg:h-8 text-[10px] lg:text-xs"
+              className="gap-1 h-7 lg:h-8 text-[10px] lg:text-xs"
             >
               ℹ️ 详情
             </Button>
@@ -281,8 +281,8 @@ export function MessagePanel({
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
             <div className="text-4xl lg:text-6xl mb-3 lg:mb-4">💬</div>
-            <p className="text-black text-sm lg:text-lg">开始聊天吧</p>
-            <p className="text-black text-xs lg:text-sm mt-1">
+            <p className="text-foreground text-sm lg:text-lg">开始聊天吧</p>
+            <p className="text-muted-foreground text-xs lg:text-sm mt-1">
               发送消息开始与对方的对话
             </p>
           </div>
@@ -341,7 +341,7 @@ export function MessagePanel({
                   {/* 消息元信息 */}
                   <div className={cn(
                     "flex items-center justify-end gap-2 mt-1.5",
-                    msg.direction === 'out' ? "text-primary-foreground/70" : "text-black"
+                    msg.direction === 'out' ? "text-primary-foreground/70" : "text-muted-foreground"
                   )}>
                     <span className="text-xs">{fmtTime(msg.createdAt)}</span>
                     {msg.direction === 'out' && <MessageStatusIndicator status={msg.status} />}
@@ -365,7 +365,7 @@ export function MessagePanel({
 
                 {/* 消息操作提示 */}
                 <div className={cn(
-                  "text-xs text-black mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                  "text-xs text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
                   msg.direction === 'out' ? "text-right" : "text-left"
                 )}>
                   右键查看更多操作
@@ -407,7 +407,7 @@ export function MessagePanel({
       <form onSubmit={onSendMessage} className="border-t p-3 lg:p-4 space-y-2 lg:space-y-3 bg-card shrink-0 safe-area-inset-bottom">
         {/* 目标选择 - 简化版 */}
         {conversation && (
-          <div className="flex items-center gap-2 text-xs text-black bg-muted/30 px-3 py-2 rounded-lg">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
             <span>📤 发送至：</span>
             <Badge variant="outline" className="text-xs">
               {sendForm.targetType === 'group' ? '👥 群聊' : '👤 私聊'}
@@ -428,8 +428,8 @@ export function MessagePanel({
             <div className="flex flex-wrap gap-2">
               {quickReplies.length === 0 ? (
                 <div className="text-center py-4 w-full">
-                  <p className="text-sm text-black">暂无快捷回复</p>
-                  <p className="text-xs text-black mt-1">可在设置中添加常用回复</p>
+                  <p className="text-sm text-foreground">暂无快捷回复</p>
+                  <p className="text-xs text-muted-foreground mt-1">可在设置中添加常用回复</p>
                 </div>
               ) : (
                 quickReplies.map((qr) => (
@@ -546,7 +546,7 @@ export function MessagePanel({
         </div>
 
         {/* 提示信息 */}
-        <div className="flex items-center justify-between text-[10px] lg:text-xs text-black">
+        <div className="flex items-center justify-between text-[10px] lg:text-xs text-muted-foreground">
           <span className="truncate">💡 提示：按 Enter 快速发送，Shift+Enter 换行</span>
           {!platformConnected && (
             <span className="text-yellow-600 shrink-0 ml-2">⚠️ 平台未连接</span>

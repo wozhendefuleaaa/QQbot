@@ -44,7 +44,7 @@ def test_backend_api():
     
     # 6. 测试平台API
     print("测试平台API...")
-    response = requests.get(f'{base_url}/api/platform', headers=headers)
+    response = requests.get(f'{base_url}/api/platform/status', headers=headers)
     print(f"获取平台信息API响应: {response.status_code}")
     
     # 7. 测试日志API

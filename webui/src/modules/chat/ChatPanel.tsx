@@ -455,7 +455,7 @@ export function ChatPanel({ accounts, platformStatus }: Props) {
             </div>
             {/* 账号筛选指示器 */}
             {filterAccountId && (
-              <div className="text-xs text-black">
+              <div className="text-xs text-muted-foreground">
                 {accounts.find(a => a.id === filterAccountId)?.name || '已筛选'}
               </div>
             )}
@@ -552,7 +552,7 @@ export function ChatPanel({ accounts, platformStatus }: Props) {
             <div className="flex-1 min-w-0">
               <h2 className="text-base font-semibold truncate">{getConversationTitle()}</h2>
               {selectedConversation && (
-                <p className="text-xs text-black truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {selectedConversation.peerType === 'group' ? '群聊' : '私聊'}
                   {selectedConversation.unreadCount && selectedConversation.unreadCount > 0 && (
                     <span className="ml-2 text-primary">

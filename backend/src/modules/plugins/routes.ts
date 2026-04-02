@@ -16,7 +16,7 @@ import path from 'path';
 
 export function registerPluginRoutes(app: Express) {
   // 获取插件源码
-  app.get('/plugins/:id/source', async (req, res) => {
+  app.get('/api/plugins/:id/source', async (req, res) => {
     try {
       const pluginId = req.params.id;
       const PLUGINS_DIR = getPluginsDir();
@@ -56,7 +56,7 @@ export function registerPluginRoutes(app: Express) {
   });
 
   // 上传插件
-  app.post('/plugins/upload', async (req, res) => {
+  app.post('/api/plugins/upload', async (req, res) => {
     try {
       const { filename, content } = req.body as { filename?: string; content?: string };
       const PLUGINS_DIR = getPluginsDir();
@@ -127,7 +127,7 @@ export function registerPluginRoutes(app: Express) {
   });
 
   // 保存/更新插件源码
-  app.put('/plugins/:id/source', async (req, res) => {
+  app.put('/api/plugins/:id/source', async (req, res) => {
     try {
       const { content } = req.body as { content?: string };
       const PLUGINS_DIR = getPluginsDir();
@@ -161,7 +161,7 @@ export function registerPluginRoutes(app: Express) {
   });
 
   // 获取插件注册表（合并已加载插件的详细信息）
-  app.get('/plugins', (_req, res) => {
+  app.get('/api/plugins', (_req, res) => {
     const loaded = getLoadedPlugins();
     const loadedMap = new Map(loaded.map(p => [p.id, p]));
     const registeredMap = new Map(plugins.map(p => [p.id, p]));
@@ -214,7 +214,7 @@ export function registerPluginRoutes(app: Express) {
   });
 
   // 获取已加载的插件实例
-  app.get('/plugins/loaded', (_req, res) => {
+  app.get('/api/plugins/loaded', (_req, res) => {
     const loaded = getLoadedPlugins();
     res.json({
       items: loaded.map(p => ({
@@ -230,7 +230,7 @@ export function registerPluginRoutes(app: Express) {
   });
 
   // 获取可用命令列表
-  app.get('/plugins/commands', (_req, res) => {
+  app.get('/api/plugins/commands', (_req, res) => {
     const commands = getAvailableCommands();
     res.json({
       items: commands.map(c => ({
@@ -244,17 +244,17 @@ export function registerPluginRoutes(app: Express) {
   });
 
   // 获取插件配置
-  app.get('/plugins/config', (_req, res) => {
+  app.get('/api/plugins/config', (_req, res) => {
     res.json(getPluginConfig());
   });
 
   // 更新插件配置
-  app.put('/plugins/config', (req, res) => {
+  app.put('/api/plugins/config', (req, res) => {
     updatePluginConfig(req.body);
     res.json({ ok: true });
   });
 
-  app.post('/plugins', async (req, res) => {
+  app.post('/api/plugins', async (req, res) => {
     const { name, description, version } = req.body as {
       name?: string;
       description?: string;
@@ -287,7 +287,7 @@ export function registerPluginRoutes(app: Express) {
     res.status(201).json(item);
   });
 
-  app.post('/plugins/:id/toggle', async (req, res) => {
+  app.post('/api/plugins/:id/toggle', async (req, res) => {
     const item = plugins.find((p) => p.id === req.params.id);
     if (!item) {
       res.status(404).json({ error: '插件不存在' });
@@ -310,7 +310,7 @@ export function registerPluginRoutes(app: Express) {
   });
 
   // 热重载插件
-  app.post('/plugins/:id/reload', async (req, res) => {
+  app.post('/api/plugins/:id/reload', async (req, res) => {
     const item = plugins.find((p) => p.id === req.params.id);
     if (!item) {
       res.status(404).json({ error: '插件不存在' });
@@ -329,7 +329,7 @@ export function registerPluginRoutes(app: Express) {
     }
   });
 
-  app.delete('/plugins/:id', async (req, res) => {
+  app.delete('/api/plugins/:id', async (req, res) => {
     const index = plugins.findIndex((p) => p.id === req.params.id);
     if (index === -1) {
       res.status(404).json({ error: '插件不存在' });
@@ -342,7 +342,7 @@ export function registerPluginRoutes(app: Express) {
     res.json({ ok: true, deleted });
   });
   // 插件健康监控 API
-  app.get('/plugins/health', (_req, res) => {
+  app.get('/api/plugins/health', (_req, res) => {
     const loaded = getLoadedPlugins();
     const PLUGINS_DIR = getPluginsDir();
     
@@ -412,7 +412,7 @@ export function registerPluginRoutes(app: Express) {
   });
   
   // 重置插件健康统计
-  app.delete('/plugins/:id/health', (req, res) => {
+  app.delete('/api/plugins/:id/health', (req, res) => {
     pluginHealthStats.delete(req.params.id);
     res.json({ ok: true });
   });
