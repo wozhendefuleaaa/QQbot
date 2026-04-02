@@ -140,6 +140,38 @@ function generateRandomPassword(length: number): string {
 }
 
 /**
+ * 验证密码复杂度
+ */
+export function validatePasswordComplexity(password: string): { valid: boolean; message?: string } {
+  // 密码长度至少8位
+  if (password.length < 8) {
+    return { valid: false, message: '密码长度至少8位' };
+  }
+  
+  // 包含至少一个大写字母
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: '密码至少包含一个大写字母' };
+  }
+  
+  // 包含至少一个小写字母
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: '密码至少包含一个小写字母' };
+  }
+  
+  // 包含至少一个数字
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, message: '密码至少包含一个数字' };
+  }
+  
+  // 包含至少一个特殊字符
+  if (!/[!@#$%^&*]/.test(password)) {
+    return { valid: false, message: '密码至少包含一个特殊字符(!@#$%^&*)' };
+  }
+  
+  return { valid: true };
+}
+
+/**
  * 密码哈希
  */
 export async function hashPassword(password: string): Promise<string> {
@@ -211,10 +243,16 @@ export function findUserById(id: string): UserWithPassword | undefined {
 /**
  * 创建用户
  */
-export async function createUser(username: string, password: string, role: 'admin' | 'user' = 'user'): Promise<User> {
+export async function createUser(username: string, password: string, role: 'admin' | 'user' = 'user'): Promise<{ success: boolean; user?: User; message?: string }> {
   const existing = findUserByUsername(username);
   if (existing) {
-    throw new Error('用户名已存在');
+    return { success: false, message: '用户名已存在' };
+  }
+  
+  // 验证密码复杂度
+  const complexityResult = validatePasswordComplexity(password);
+  if (!complexityResult.valid) {
+    return { success: false, message: complexityResult.message };
   }
   
   const passwordHash = await hashPassword(password);
@@ -231,7 +269,7 @@ export async function createUser(username: string, password: string, role: 'admi
   await saveUsersToDisk(); // 持久化用户数据
   
   const { passwordHash: _, ...userWithoutPassword } = user;
-  return userWithoutPassword;
+  return { success: true, user: userWithoutPassword };
 }
 
 /**
@@ -247,14 +285,23 @@ export function updateUserLastLogin(userId: string): void {
 /**
  * 修改密码
  */
-export async function changePassword(userId: string, newPassword: string): Promise<boolean> {
+export async function changePassword(userId: string, newPassword: string): Promise<{ success: boolean; message?: string }> {
   const user = users.find(u => u.id === userId);
   if (!user) {
-    return false;
+    return { success: false, message: '用户不存在' };
   }
+  
+  // 验证密码复杂度
+  const complexityResult = validatePasswordComplexity(newPassword);
+  if (!complexityResult.valid) {
+    return { success: false, message: complexityResult.message };
+  }
+  
   user.passwordHash = await hashPassword(newPassword);
+  // 清除密码修改标记
+  delete user.requirePasswordChange;
   await saveUsersToDisk(); // 持久化用户数据
-  return true;
+  return { success: true };
 }
 
 /**

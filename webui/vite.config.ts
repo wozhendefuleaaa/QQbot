@@ -49,5 +49,31 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    // 生产构建优化
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
+    rollupOptions: {
+      // 代码分割
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          'react-query': ['@tanstack/react-query'],
+          recharts: ['recharts'],
+          lucide: ['lucide-react'],
+          radix: ['@radix-ui/react-dialog', '@radix-ui/react-slot']
+        }
+      }
+    },
+    // 启用 CSS 代码分割
+    cssCodeSplit: true,
+    // 生成源映射
+    sourcemap: false
   }
 });

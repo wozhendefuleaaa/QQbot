@@ -133,12 +133,7 @@ router.post('/change-password', authMiddleware, asyncHandler(async (req, res) =>
     });
   }
   
-  if (newPassword.length < 6) {
-    return res.status(400).json({
-      success: false,
-      error: '新密码长度至少6位'
-    });
-  }
+
   
   // 非强制修改密码的情况，需要验证旧密码
   if (!requirePasswordChange && oldPassword) {
@@ -151,10 +146,14 @@ router.post('/change-password', authMiddleware, asyncHandler(async (req, res) =>
     }
   }
   
-  await changePassword(user.id, newPassword);
+  const result = await changePassword(user.id, newPassword);
   
-  // 清除密码修改标记
-  clearRequirePasswordChange(user.id);
+  if (!result.success) {
+    return res.status(400).json({
+      success: false,
+      error: result.message
+    });
+  }
   
   res.json({
     success: true,
@@ -182,18 +181,19 @@ router.post('/users', authMiddleware, asyncHandler(async (req, res) => {
     });
   }
   
-  try {
-    const newUser = await createUser(username, password, role || 'user');
-    res.status(201).json({
-      success: true,
-      user: newUser
-    });
-  } catch (error) {
-    res.status(400).json({
+  const result = await createUser(username, password, role || 'user');
+  
+  if (!result.success) {
+    return res.status(400).json({
       success: false,
-      error: (error as Error).message
+      error: result.message
     });
   }
+  
+  res.status(201).json({
+    success: true,
+    user: result.user
+  });
 }));
 
 /**
