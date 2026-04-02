@@ -43,16 +43,16 @@ async function getBotGroups(account: { appId: string; appSecret: string }): Prom
 }
 
 export function registerPlatformRoutes(app: Express) {
-  app.get('/api/platform/status', (_req, res) => {
+  app.get('/platform/status', (_req, res) => {
     res.json(platformStatus);
   });
 
-  app.get('/api/platform/logs', (req, res) => {
+  app.get('/platform/logs', (req, res) => {
     const limit = Number(req.query.limit || 100);
     res.json({ items: platformLogs.slice(0, Math.max(1, Math.min(limit, 300))) });
   });
 
-  app.post('/api/platform/connect', async (req, res) => {
+  app.post('/platform/connect', async (req, res) => {
     const forceRefreshToken = Boolean(req.body?.forceRefreshToken);
     const accountId = String(req.body?.accountId || '').trim();
 
@@ -81,14 +81,14 @@ export function registerPlatformRoutes(app: Express) {
     }
   });
 
-  app.post('/api/platform/disconnect', (req, res) => {
+  app.post('/platform/disconnect', (req, res) => {
     const autoReconnect = Boolean(req.body?.autoReconnect);
     disconnectGateway(autoReconnect);
     res.json({ ok: true, status: platformStatus });
   });
 
   // 获取指定账号的群组列表（需要认证）
-  app.get('/api/platform/groups/:accountId', authMiddleware, async (req, res) => {
+  app.get('/platform/groups/:accountId', async (req, res) => {
     const { accountId } = req.params;
     const account = accounts.find(a => a.id === accountId);
     
@@ -106,7 +106,7 @@ export function registerPlatformRoutes(app: Express) {
   });
 
   // 获取所有账号的群组和私聊列表（用于配置中心）
-  app.get('/api/platform/contacts', authMiddleware, async (req, res) => {
+  app.get('/platform/contacts', async (req, res) => {
     const allGroups: Array<{ accountId: string; accountName: string; groups: Array<{ id: string; name: string }> }> = [];
     const privateChats: Array<{ accountId: string; accountName: string; peers: Array<{ id: string; name: string }> }> = [];
 

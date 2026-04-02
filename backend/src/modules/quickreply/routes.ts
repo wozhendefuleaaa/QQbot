@@ -4,12 +4,12 @@ import type { QuickReply } from '../../types.js';
 
 export function registerQuickReplyRoutes(app: Express) {
   // 获取所有快捷回复
-  app.get('/api/quick-replies', (_req, res) => {
+  app.get('/quick-replies', (_req, res) => {
     res.json({ items: quickReplies });
   });
 
   // 创建快捷回复
-  app.post('/api/quick-replies', async (req, res) => {
+  app.post('/quick-replies', async (req, res) => {
     const { text, category, shortcut } = req.body;
     if (!text || typeof text !== 'string' || !text.trim()) {
       res.status(400).json({ error: 'text is required' });
@@ -31,7 +31,7 @@ export function registerQuickReplyRoutes(app: Express) {
   });
 
   // 更新快捷回复
-  app.put('/api/quick-replies/:id', async (req, res) => {
+  app.put('/quick-replies/:id', async (req, res) => {
     const { id: replyId } = req.params;
     const { text, category, shortcut } = req.body;
 
@@ -60,7 +60,7 @@ export function registerQuickReplyRoutes(app: Express) {
   });
 
   // 删除快捷回复
-  app.delete('/api/quick-replies/:id', async (req, res) => {
+  app.delete('/quick-replies/:id', async (req, res) => {
     const { id: replyId } = req.params;
     const idx = quickReplies.findIndex((r) => r.id === replyId);
     if (idx === -1) {

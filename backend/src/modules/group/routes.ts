@@ -9,7 +9,7 @@ import {
 
 export function registerGroupRoutes(app: Express) {
   // 获取群成员列表
-  app.get('/api/groups/:groupId/members', async (req, res) => {
+  app.get('/groups/:groupId/members', async (req, res) => {
     const { groupId } = req.params;
     const { accountId } = req.query as { accountId?: string };
 
@@ -44,7 +44,7 @@ export function registerGroupRoutes(app: Express) {
   });
 
   // 禁言群成员
-  app.post('/api/groups/:groupId/members/:userId/mute', async (req, res) => {
+  app.post('/groups/:groupId/members/:userId/mute', async (req, res) => {
     const { groupId, userId } = req.params;
     const { accountId, duration } = req.body as { accountId?: string; duration?: number };
 
@@ -91,7 +91,7 @@ export function registerGroupRoutes(app: Express) {
   });
 
   // 解除禁言
-  app.delete('/api/groups/:groupId/members/:userId/mute', async (req, res) => {
+  app.delete('/groups/:groupId/members/:userId/mute', async (req, res) => {
     const { groupId, userId } = req.params;
     const { accountId } = req.body as { accountId?: string };
 
@@ -126,7 +126,7 @@ export function registerGroupRoutes(app: Express) {
   });
 
   // 踢出群成员
-  app.delete('/api/groups/:groupId/members/:userId', async (req, res) => {
+  app.delete('/groups/:groupId/members/:userId', async (req, res) => {
     const { groupId, userId } = req.params;
     const { accountId } = req.query as { accountId?: string };
 

@@ -8,7 +8,7 @@ function maskToken(token: string) {
 }
 
 export function registerOpenApiRoutes(app: Express) {
-  app.get('/api/openapi/tokens', (_req, res) => {
+  app.get('/openapi/tokens', (_req, res) => {
     res.json({
       enabled: appConfig.allowOpenApi,
       items: openApiTokens.map((x) => ({
@@ -21,7 +21,7 @@ export function registerOpenApiRoutes(app: Express) {
     });
   });
 
-  app.post('/api/openapi/tokens', async (req, res) => {
+  app.post('/openapi/tokens', async (req, res) => {
     if (!appConfig.allowOpenApi) {
       res.status(403).json({ error: 'OpenAPI 已禁用' });
       return;
@@ -48,7 +48,7 @@ export function registerOpenApiRoutes(app: Express) {
     res.status(201).json(item);
   });
 
-  app.post('/api/openapi/tokens/:id/toggle', async (req, res) => {
+  app.post('/openapi/tokens/:id/toggle', async (req, res) => {
     const item = openApiTokens.find((x) => x.id === req.params.id);
     if (!item) {
       res.status(404).json({ error: 'token 不存在' });
@@ -66,7 +66,7 @@ export function registerOpenApiRoutes(app: Express) {
     });
   });
 
-  app.delete('/api/openapi/tokens/:id', async (req, res) => {
+  app.delete('/openapi/tokens/:id', async (req, res) => {
     const index = openApiTokens.findIndex((x) => x.id === req.params.id);
     if (index === -1) {
       res.status(404).json({ error: 'token 不存在' });

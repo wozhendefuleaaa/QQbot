@@ -5,15 +5,15 @@ import { createOneBotToken } from './auth.js';
 import { listOneBotConnections, buildOneBotStatusOverview } from './state.js';
 
 export function registerOneBotRoutes(app: Express) {
-  app.get('/api/onebot/status', authMiddleware, (_req, res) => {
+  app.get('/onebot/status', (_req, res) => {
     res.json(buildOneBotStatusOverview());
   });
 
-  app.get('/api/onebot/connections', authMiddleware, (_req, res) => {
+  app.get('/onebot/connections', (_req, res) => {
     res.json({ items: listOneBotConnections() });
   });
 
-  app.post('/api/onebot/accounts', authMiddleware, async (req, res) => {
+  app.post('/onebot/accounts', async (req, res) => {
     const { name, selfId } = req.body as { name?: string; selfId?: string };
 
     if (!name || !selfId) {
@@ -40,7 +40,7 @@ export function registerOneBotRoutes(app: Express) {
     res.status(201).json(item);
   });
 
-  app.post('/api/onebot/tokens', authMiddleware, async (req, res) => {
+  app.post('/onebot/tokens', async (req, res) => {
     const { accountId, name } = req.body as { accountId?: string; name?: string };
     if (!accountId || !name) {
       res.status(400).json({ error: 'accountId/name 为必填项' });
