@@ -50,6 +50,20 @@
     color: var(--color-foreground);
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
     @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
+
+  /* 为所有可能变化的元素添加过渡效果 */
+  .card,
+  .popover,
+  button,
+  input,
+  textarea,
+  select,
+  .badge,
+  .nav-item,
+  .mobile-nav-item {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
 
   /* 移动端安全区域适配 */
@@ -205,6 +219,84 @@
   }
 }
 
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rotate-in {
+  from {
+    opacity: 0;
+    transform: rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0);
+  }
+}
+
+@keyframes card-hover {
+  from {
+    transform: translateY(0);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+  to {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+}
+
+@keyframes button-press {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.96);
+  }
+}
+
+@keyframes input-focus {
+  from {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2);
+  }
+  to {
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @layer utilities {
   .animate-fade-in {
     animation: fade-in 0.3s ease-out forwards;
@@ -228,6 +320,59 @@
 
   .animate-pulse-soft {
     animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  .animate-bounce-in {
+    animation: bounce-in 0.4s ease-out forwards;
+  }
+
+  .animate-fade-in-down {
+    animation: fade-in-down 0.3s ease-out forwards;
+  }
+
+  .animate-rotate-in {
+    animation: rotate-in 0.3s ease-out forwards;
+  }
+
+  .animate-card-hover {
+    animation: card-hover 0.2s ease-out forwards;
+  }
+
+  .animate-button-press {
+    animation: button-press 0.15s ease-in-out forwards;
+  }
+
+  .animate-input-focus {
+    animation: input-focus 0.2s ease-out forwards;
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 2s linear infinite;
+  }
+
+  /* 过渡效果 */
+  .transition-all-200 {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .transition-all-300 {
+    transition: all 0.3s ease-in-out;
+  }
+
+  .transition-all-500 {
+    transition: all 0.5s ease-in-out;
+  }
+
+  .transition-colors {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+  }
+
+  .transition-transform {
+    transition: transform 0.2s ease-in-out;
+  }
+
+  .transition-shadow {
+    transition: box-shadow 0.2s ease-in-out;
   }
 }
 
@@ -282,8 +427,8 @@
 /* 响应式滚动条 */
 @layer base {
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
@@ -292,11 +437,12 @@
 
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 3px;
+    border-radius: 4px;
+    transition: background 0.2s ease-in-out;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
+    background: hsl(var(--muted-foreground) / 0.6);
   }
 
   /* 响应式调整 */
@@ -304,6 +450,619 @@
     ::-webkit-scrollbar {
       width: 4px;
       height: 4px;
+    }
+  }
+
+  /* 平滑滚动 */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* 选中文本样式 */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.2);
+    color: var(--primary-foreground);
+  }
+
+  /* 焦点样式 */
+  *:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* 禁用文本选择 */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* 动画缓动函数 */
+  .ease-in-out-quart {
+    transition-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+  }
+
+  /* 卡片悬停效果 */
+  .card-hover {
+    transition: all 0.3s ease-in-out;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px hsl(var(--background) / 0.1), 0 8px 10px -6px hsl(var(--background) / 0.1);
+  }
+
+  /* 按钮悬停效果 */
+  .btn-hover {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .btn-hover:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-hover:active {
+    transform: translateY(0);
+  }
+
+  /* 输入框聚焦效果 */
+  .input-focus {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .input-focus:focus {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+  }
+
+  /* 加载动画 */
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 2s linear infinite;
+  }
+
+  /* 淡入动画 */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.3s ease-out forwards;
+  }
+
+  /* 弹跳动画 */
+  @keyframes bounce-light {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .animate-bounce-light {
+    animation: bounce-light 2s ease-in-out infinite;
+  }
+
+  /* 缩放动画 */
+  @keyframes scale-hover {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.05);
+    }
+  }
+
+  .animate-scale-hover:hover {
+    animation: scale-hover 0.3s ease-out forwards;
+  }
+
+  /* 响应式字体大小 */
+  @media (max-width: 640px) {
+    html {
+      font-size: 14px;
+    }
+  }
+
+  @media (min-width: 641px) and (max-width: 1024px) {
+    html {
+      font-size: 15px;
+    }
+  }
+
+  @media (min-width: 1025px) {
+    html {
+      font-size: 16px;
+    }
+  }
+
+  /* 响应式间距 */
+  @media (max-width: 640px) {
+    .responsive-gap {
+      gap: 0.75rem;
+    }
+  }
+
+  @media (min-width: 641px) {
+    .responsive-gap {
+      gap: 1rem;
+    }
+  }
+
+  /* 响应式边距 */
+  @media (max-width: 640px) {
+    .responsive-margin {
+      margin: 0.5rem;
+    }
+  }
+
+  @media (min-width: 641px) {
+    .responsive-margin {
+      margin: 1rem;
+    }
+  }
+
+  /* 响应式填充 */
+  @media (max-width: 640px) {
+    .responsive-padding {
+      padding: 1rem;
+    }
+  }
+
+  @media (min-width: 641px) {
+    .responsive-padding {
+      padding: 1.5rem;
+    }
+  }
+
+  /* 卡片样式 */
+  .card {
+    background-color: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 3px 0 hsl(var(--background) / 0.1), 0 1px 2px -1px hsl(var(--background) / 0.1);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .card:hover {
+    box-shadow: 0 4px 6px -1px hsl(var(--background) / 0.1), 0 2px 4px -2px hsl(var(--background) / 0.1);
+  }
+
+  /* 阴影效果 */
+  .shadow-soft {
+    box-shadow: 0 1px 3px 0 hsl(var(--background) / 0.05), 0 1px 2px -1px hsl(var(--background) / 0.05);
+  }
+
+  .shadow-medium {
+    box-shadow: 0 4px 6px -1px hsl(var(--background) / 0.1), 0 2px 4px -2px hsl(var(--background) / 0.1);
+  }
+
+  .shadow-strong {
+    box-shadow: 0 10px 15px -3px hsl(var(--background) / 0.1), 0 4px 6px -4px hsl(var(--background) / 0.1);
+  }
+
+  /* 渐变背景 */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary) / 80);
+  }
+
+  .bg-gradient-secondary {
+    background: linear-gradient(135deg, var(--secondary), var(--secondary) / 80);
+  }
+
+  .bg-gradient-muted {
+    background: linear-gradient(135deg, var(--muted), var(--muted) / 80);
+  }
+
+  /* 玻璃态效果 */
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .dark .glass-effect {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* 边框效果 */
+  .border-glow {
+    box-shadow: 0 0 0 1px var(--border), 0 0 0 4px hsl(var(--primary) / 0.1);
+  }
+
+  /* 文本渐变 */
+  .text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(135deg, var(--primary), var(--primary) / 80);
+  }
+
+  /* 骨架屏动画 */
+  @keyframes skeleton-loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--muted) 25%, var(--muted) / 50% 50%, var(--muted) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+  }
+
+  /* 提示框动画 */
+  @keyframes toast-slide-in {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes toast-slide-out {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+
+  .toast-enter {
+    animation: toast-slide-in 0.3s ease-out forwards;
+  }
+
+  .toast-exit {
+    animation: toast-slide-out 0.3s ease-in forwards;
+  }
+
+  /* 模态框动画 */
+  @keyframes modal-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes modal-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .modal-overlay-enter {
+    animation: modal-fade-in 0.2s ease-out forwards;
+  }
+
+  .modal-content-enter {
+    animation: modal-scale-in 0.3s ease-out forwards;
+  }
+
+  /* 移动端适配 */
+  @media (max-width: 640px) {
+    /* 增大触摸目标 */
+    button, 
+    [role="button"],
+    a,
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: 48px;
+      min-width: 48px;
+    }
+
+    /* 小按钮例外 */
+    button.btn-sm,
+    button.text-xs,
+    .btn-icon {
+      min-height: auto;
+      min-width: auto;
+    }
+
+    /* 优化输入框 */
+    input, textarea, select {
+      font-size: 16px; /* 防止 iOS 缩放 */
+    }
+
+    /* 移动端卡片优化 */
+    .card-mobile {
+      border-radius: 12px;
+      margin: 8px;
+      padding: 16px;
+    }
+
+    /* 移动端列表项优化 */
+    .list-item-mobile {
+      padding: 16px;
+      min-height: 56px;
+    }
+
+    /* 移动端表单优化 */
+    .mobile-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .mobile-form-input {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1rem;
+    }
+
+    /* 移动端按钮组 */
+    .mobile-button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* 移动端隐藏滚动条但保持滚动功能 */
+    .mobile-scroll-hidden {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .mobile-scroll-hidden::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* 移动端对话框优化 */
+    .mobile-dialog {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      top: auto;
+      border-radius: 1rem 1rem 0 0;
+      max-height: 85vh;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .mobile-dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      animation: modal-fade-in 0.2s ease-out forwards;
+    }
+
+    .mobile-dialog-content {
+      animation: slide-up-modal 0.3s ease-out forwards;
+    }
+
+    /* 移动端状态栏样式 */
+    .mobile-status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background-color: var(--muted);
+      opacity: 0.8;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.75rem;
+    }
+
+    /* 移动端卡片网格 */
+    .mobile-card-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 1rem;
+    }
+
+    .mobile-card-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      padding: 1rem;
+    }
+
+    /* 移动端标签页优化 */
+    .mobile-tabs {
+      display: flex;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .mobile-tab {
+      flex-shrink: 0;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .mobile-tab-active {
+      border-bottom: 2px solid var(--primary);
+      color: var(--primary);
+    }
+
+    .mobile-tab-inactive {
+      color: var(--muted-foreground);
+    }
+
+    /* 移动端消息气泡优化 */
+    .mobile-message-bubble {
+      max-width: 85%;
+      padding: 0.75rem 1rem;
+      border-radius: 1rem;
+    }
+
+    .mobile-message-bubble-sent {
+      background-color: var(--primary);
+      color: var(--primary-foreground);
+      border-bottom-right-radius: 0.25rem;
+    }
+
+    .mobile-message-bubble-received {
+      background-color: var(--muted);
+      border-bottom-left-radius: 0.25rem;
+    }
+
+    /* 移动端输入框固定在底部 */
+    .mobile-input-fixed {
+      position: fixed;
+      bottom: 4rem;
+      left: 0;
+      right: 0;
+      background-color: var(--background);
+      border-top: 1px solid var(--border);
+      padding: 0.75rem;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+  }
+
+  /* 平板适配 */
+  @media (min-width: 641px) and (max-width: 1024px) {
+    .tablet-card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+      padding: 1.25rem;
+    }
+
+    .tablet-padding {
+      padding: 1.25rem;
+    }
+
+    .tablet-margin {
+      margin: 1.25rem;
+    }
+  }
+
+  /* 桌面端适配 */
+  @media (min-width: 1025px) {
+    .desktop-card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      padding: 1.5rem;
+    }
+
+    .desktop-padding {
+      padding: 1.5rem;
+    }
+
+    .desktop-margin {
+      margin: 1.5rem;
+    }
+  }
+
+  /* 大屏幕适配 */
+  @media (min-width: 1280px) {
+    .large-card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    .large-padding {
+      padding: 2rem;
+    }
+
+    .large-margin {
+      margin: 2rem;
+    }
+  }
+
+  /* 深色模式优化 */
+  .dark {
+    /* 滚动条样式 */
+    ::-webkit-scrollbar-thumb {
+      background: hsl(var(--muted-foreground) / 0.4);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--muted-foreground) / 0.7);
+    }
+
+    /* 选中文本样式 */
+    ::selection {
+      background-color: hsl(var(--primary) / 0.3);
+      color: var(--primary-foreground);
+    }
+
+    /* 卡片悬停效果 */
+    .card:hover {
+      box-shadow: 0 4px 6px -1px hsl(var(--background) / 0.2), 0 2px 4px -2px hsl(var(--background) / 0.2);
+    }
+
+    /* 阴影效果 */
+    .shadow-soft {
+      box-shadow: 0 1px 3px 0 hsl(var(--background) / 0.1), 0 1px 2px -1px hsl(var(--background) / 0.1);
+    }
+
+    .shadow-medium {
+      box-shadow: 0 4px 6px -1px hsl(var(--background) / 0.2), 0 2px 4px -2px hsl(var(--background) / 0.2);
+    }
+
+    .shadow-strong {
+      box-shadow: 0 10px 15px -3px hsl(var(--background) / 0.2), 0 4px 6px -4px hsl(var(--background) / 0.2);
+    }
+  }
+
+  /* 高对比度模式支持 */
+  @media (prefers-contrast: high) {
+    :root {
+      --color-border: hsl(214.3 31.8% 81.4%);
+      --color-input: hsl(214.3 31.8% 81.4%);
+      --color-ring: hsl(221.2 83.2% 43.3%);
+    }
+
+    .dark {
+      --color-border: hsl(220 15% 32%);
+      --color-input: hsl(220 18% 28%);
+      --color-ring: hsl(215 65% 45%);
+    }
+  }
+
+  /* 减少动画模式支持 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }

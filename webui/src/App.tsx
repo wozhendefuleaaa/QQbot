@@ -1,15 +1,18 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { AccountsPanel } from './modules/accounts/AccountsPanel';
-import { ChatPanel } from './modules/chat/ChatPanel';
-import { PlatformPanel } from './modules/platform/PlatformPanel';
-import { ConfigPanel } from './modules/config/ConfigPanel';
-import { LogsPanel } from './modules/logs/LogsPanel';
-import { StatisticsPanel } from './modules/statistics/StatisticsPanel';
-import { OpenApiPanel } from './modules/openapi/OpenApiPanel';
-import { PluginsPanel } from './modules/plugins/PluginsPanel';
+import React, { FormEvent, useCallback, useEffect, useMemo, useState, Suspense } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LoginPage } from './modules/auth/LoginPage';
 import { ChangePasswordDialog } from './modules/auth/ChangePasswordDialog';
-import { HomePage } from './modules/home/HomePage';
+
+// 懒加载组件
+const HomePage = React.lazy(() => import('./modules/home/HomePage').then(module => ({ default: module.HomePage })));
+const AccountsPanel = React.lazy(() => import('./modules/accounts/AccountsPanel').then(module => ({ default: module.AccountsPanel })));
+const ChatPanel = React.lazy(() => import('./modules/chat/ChatPanel').then(module => ({ default: module.ChatPanel })));
+const PlatformPanel = React.lazy(() => import('./modules/platform/PlatformPanel').then(module => ({ default: module.PlatformPanel })));
+const ConfigPanel = React.lazy(() => import('./modules/config/ConfigPanel').then(module => ({ default: module.ConfigPanel })));
+const LogsPanel = React.lazy(() => import('./modules/logs/LogsPanel').then(module => ({ default: module.LogsPanel })));
+const StatisticsPanel = React.lazy(() => import('./modules/statistics/StatisticsPanel').then(module => ({ default: module.StatisticsPanel })));
+const OpenApiPanel = React.lazy(() => import('./modules/openapi/OpenApiPanel').then(module => ({ default: module.OpenApiPanel })));
+const PluginsPanel = React.lazy(() => import('./modules/plugins/PluginsPanel').then(module => ({ default: module.PluginsPanel })));
 import { useAuth } from './contexts/AuthContext';
 import { useTheme } from './hooks/useTheme';
 import { api } from './services/api';
@@ -46,47 +49,15 @@ import {
 function App() {
   const { isAuthenticated, isLoading, user, logout, requirePasswordChange, clearRequirePasswordChange } = useAuth();
   const { theme } = useTheme();
+  const queryClient = useQueryClient();
   const [activeMenu, setActiveMenu] = useState<MenuKey>('home');
 
-  const [accounts, setAccounts] = useState<BotAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-
-  const [platformStatus, setPlatformStatus] = useState<PlatformStatus>({
-    connected: false,
-    connecting: false,
-    connectedAccountId: null,
-    connectedAccountName: null,
-    lastConnectedAt: null,
-    tokenExpiresAt: null,
-    lastError: null
-  });
-  const [platformLogs, setPlatformLogs] = useState<PlatformLog[]>([]);
-  const [oneBotStatus, setOneBotStatus] = useState<OneBotStatusOverview | null>(null);
-  const [oneBotConnections, setOneBotConnections] = useState<OneBotConnectionInfo[]>([]);
-
-  const [config, setConfig] = useState<AppConfig>({
-    webName: 'Wawa-QQbot',
-    notice: '欢迎使用 Wawa-QQbot 智能机器人管理平台',
-    allowOpenApi: true,
-    defaultIntent: 0,
-    pluginPermissions: {},
-    updatedAt: new Date().toISOString()
-  });
-  const [logs, setLogs] = useState<SystemLog[]>([]);
-  const [logType, setLogType] = useState<'all' | 'framework' | 'plugin' | 'openapi' | 'config'>('all');
-  const [snapshot, setSnapshot] = useState<StatisticsSnapshot | null>(null);
-  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
-  const [pluginConfig, setPluginConfig] = useState<PluginConfig | null>(null);
-  const [openApiEnabled, setOpenApiEnabled] = useState(true);
-  const [openApiTokens, setOpenApiTokens] = useState<OpenApiTokenView[]>([]);
   const [newTokenName, setNewTokenName] = useState('');
   const [newOneBotTokenName, setNewOneBotTokenName] = useState('');
   const [createdOneBotToken, setCreatedOneBotToken] = useState<OneBotCreateTokenResponse | null>(null);
 
-  const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>('欢迎使用 QQ 机器人控制台。');
   const [noticeSeverity, setNoticeSeverity] = useState<'info' | 'success' | 'error'>('info');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -111,6 +82,118 @@ function App() {
     text: ''
   });
 
+  // API 请求使用 React Query
+  const { data: accountsData } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => api<{ items: BotAccount[] }>('/api/accounts'),
+    enabled: isAuthenticated,
+    refetchInterval: 30000, // 30秒自动刷新
+  });
+
+  const accounts = accountsData?.items || [];
+
+  const { data: conversationsData } = useQuery({
+    queryKey: ['conversations', selectedAccountId],
+    queryFn: () => api<{ items: Conversation[] }>(`/api/conversations?accountId=${selectedAccountId}`),
+    enabled: isAuthenticated && !!selectedAccountId,
+    refetchInterval: 15000, // 15秒自动刷新
+  });
+
+  const conversations = conversationsData?.items || [];
+
+  const { data: messagesData } = useQuery({
+    queryKey: ['messages', selectedConversationId],
+    queryFn: () => api<{ items: ChatMessage[] }>(`/api/conversations/${selectedConversationId}/messages`),
+    enabled: isAuthenticated && !!selectedConversationId,
+    refetchInterval: 10000, // 10秒自动刷新
+  });
+
+  const messages = messagesData?.items || [];
+
+  const { data: platformStatus } = useQuery({
+    queryKey: ['platformStatus'],
+    queryFn: () => api<PlatformStatus>('/api/platform/status'),
+    enabled: isAuthenticated,
+    refetchInterval: 5000, // 5秒自动刷新
+  });
+
+  const { data: platformLogsData } = useQuery({
+    queryKey: ['platformLogs'],
+    queryFn: () => api<{ items: PlatformLog[] }>('/api/platform/logs?limit=100'),
+    enabled: isAuthenticated,
+    refetchInterval: 10000, // 10秒自动刷新
+  });
+
+  const platformLogs = platformLogsData?.items || [];
+
+  const { data: oneBotStatus } = useQuery({
+    queryKey: ['oneBotStatus'],
+    queryFn: () => api<OneBotStatusOverview>('/api/onebot/status'),
+    enabled: isAuthenticated,
+    refetchInterval: 5000, // 5秒自动刷新
+  });
+
+  const { data: oneBotConnectionsData } = useQuery({
+    queryKey: ['oneBotConnections'],
+    queryFn: () => api<{ items: OneBotConnectionInfo[] }>('/api/onebot/connections'),
+    enabled: isAuthenticated,
+    refetchInterval: 10000, // 10秒自动刷新
+  });
+
+  const oneBotConnections = oneBotConnectionsData?.items || [];
+
+  const { data: config } = useQuery({
+    queryKey: ['config'],
+    queryFn: () => api<AppConfig>('/api/config'),
+    enabled: isAuthenticated,
+    refetchInterval: 60000, // 1分钟自动刷新
+  });
+
+  const [logType, setLogType] = useState<'all' | 'framework' | 'plugin' | 'openapi' | 'config'>('all');
+  const { data: logsData } = useQuery({
+    queryKey: ['logs', logType],
+    queryFn: () => api<{ items: SystemLog[] }>(`/api/logs?type=${logType}&limit=200`),
+    enabled: isAuthenticated,
+    refetchInterval: 15000, // 15秒自动刷新
+  });
+
+  const logs = logsData?.items || [];
+
+  const { data: statisticsData } = useQuery({
+    queryKey: ['statistics'],
+    queryFn: () => api<{ snapshot: StatisticsSnapshot }>('/api/statistics'),
+    enabled: isAuthenticated,
+    refetchInterval: 30000, // 30秒自动刷新
+  });
+
+  const snapshot = statisticsData?.snapshot || null;
+
+  const { data: pluginsData } = useQuery({
+    queryKey: ['plugins'],
+    queryFn: () => api<{ items: PluginInfo[] }>('/api/plugins'),
+    enabled: isAuthenticated,
+    refetchInterval: 30000, // 30秒自动刷新
+  });
+
+  const plugins = pluginsData?.items || [];
+
+  const { data: pluginConfig } = useQuery({
+    queryKey: ['pluginConfig'],
+    queryFn: () => api<PluginConfig>('/api/plugins/config'),
+    enabled: isAuthenticated,
+    refetchInterval: 60000, // 1分钟自动刷新
+  });
+
+  const { data: openApiData } = useQuery({
+    queryKey: ['openApi'],
+    queryFn: () => api<{ enabled: boolean; items: OpenApiTokenView[] }>('/api/openapi/tokens'),
+    enabled: isAuthenticated,
+    refetchInterval: 30000, // 30秒自动刷新
+  });
+
+  const openApiEnabled = openApiData?.enabled || true;
+  const openApiTokens = openApiData?.items || [];
+
   const selectedAccount = useMemo(
     () => accounts.find((a) => a.id === selectedAccountId),
     [accounts, selectedAccountId]
@@ -121,178 +204,85 @@ function App() {
     [conversations, selectedConversationId]
   );
 
-  const loadAccounts = useCallback(async () => {
-    const data = await api<{ items: BotAccount[] }>('/api/accounts');
-    setAccounts(data.items);
-    if (!selectedAccountId && data.items[0]) {
-      setSelectedAccountId(data.items[0].id);
+  // 当accounts加载完成后，自动选择第一个账号
+  useEffect(() => {
+    if (accounts.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accounts[0].id);
     }
-  }, [selectedAccountId]);
+  }, [accounts, selectedAccountId]);
 
-  const loadConversations = useCallback(async (accountId: string) => {
-    const data = await api<{ items: Conversation[] }>(`/api/conversations?accountId=${accountId}`);
-    setConversations(data.items);
-    if (data.items[0]) {
-      setSelectedConversationId(data.items[0].id);
+  // 当conversations加载完成后，自动选择第一个会话
+  useEffect(() => {
+    if (conversations.length > 0) {
+      setSelectedConversationId(conversations[0].id);
     } else {
       setSelectedConversationId('');
-      setMessages([]);
     }
-  }, []);
+  }, [conversations]);
 
-  const loadMessages = useCallback(async (conversationId: string) => {
-    const data = await api<{ items: ChatMessage[] }>(`/api/conversations/${conversationId}/messages`);
-    setMessages(data.items);
-  }, []);
-
-  const loadPlatformStatus = useCallback(async () => {
-    const data = await api<PlatformStatus>('/api/platform/status');
-    setPlatformStatus(data);
-  }, []);
-
-  const loadPlatformLogs = useCallback(async () => {
-    const data = await api<{ items: PlatformLog[] }>('/api/platform/logs?limit=100');
-    setPlatformLogs(data.items);
-  }, []);
-
-  const loadOneBotStatus = useCallback(async () => {
-    const data = await api<OneBotStatusOverview>('/api/onebot/status');
-    setOneBotStatus(data);
-  }, []);
-
-  const loadOneBotConnections = useCallback(async () => {
-    const data = await api<{ items: OneBotConnectionInfo[] }>('/api/onebot/connections');
-    setOneBotConnections(data.items);
-  }, []);
-
-  const loadConfig = useCallback(async () => {
-    const data = await api<AppConfig>('/api/config');
-    setConfig(data);
-  }, []);
-
-  const loadLogs = useCallback(async (nextType = logType) => {
-    const data = await api<{ items: SystemLog[] }>(`/api/logs?type=${nextType}&limit=200`);
-    setLogs(data.items);
-  }, [logType]);
-
-  const loadStatistics = useCallback(async () => {
-    const data = await api<{ snapshot: StatisticsSnapshot }>('/api/statistics');
-    setSnapshot(data.snapshot);
-  }, []);
-
-  const loadPlugins = useCallback(async () => {
-    const data = await api<{ items: PluginInfo[] }>('/api/plugins');
-    setPlugins(data.items);
-  }, []);
-
-  const loadPluginConfig = useCallback(async () => {
-    const data = await api<PluginConfig>('/api/plugins/config');
-    setPluginConfig(data);
-  }, []);
-
-  const loadOpenApi = useCallback(async () => {
-    const data = await api<{ enabled: boolean; items: OpenApiTokenView[] }>('/api/openapi/tokens');
-    setOpenApiEnabled(data.enabled);
-    setOpenApiTokens(data.items);
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    setLoading(true);
-    Promise.all([
-      loadAccounts(),
-      loadPlatformStatus(),
-      loadPlatformLogs(),
-      loadOneBotStatus(),
-      loadOneBotConnections(),
-      loadConfig(),
-      loadLogs('all'),
-      loadStatistics(),
-      loadPlugins(),
-      loadPluginConfig(),
-      loadOpenApi()
-    ])
-      .catch((e: Error) => showError(e.message))
-      .finally(() => setLoading(false));
-  }, [isAuthenticated, loadAccounts, loadPlatformStatus, loadPlatformLogs, loadOneBotStatus, loadOneBotConnections, loadConfig, loadLogs, loadStatistics, loadPlugins, loadPluginConfig, loadOpenApi]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !selectedAccountId) return;
-    loadConversations(selectedAccountId).catch((e: Error) => showError(e.message));
-  }, [isAuthenticated, selectedAccountId, loadConversations]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !selectedConversationId) return;
-    loadMessages(selectedConversationId).catch((e: Error) => showError(e.message));
-  }, [isAuthenticated, selectedConversationId, loadMessages]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const timer = setInterval(() => {
-      loadPlatformStatus().catch(() => undefined);
-      if (activeMenu === 'platform') {
-        loadPlatformLogs().catch(() => undefined);
-        loadOneBotStatus().catch(() => undefined);
-        loadOneBotConnections().catch(() => undefined);
-      }
-      if (activeMenu === 'logs') {
-        loadLogs().catch(() => undefined);
-      }
-      if (activeMenu === 'statistics') {
-        loadStatistics().catch(() => undefined);
-      }
-      if (activeMenu === 'chat' && selectedAccountId) {
-        loadConversations(selectedAccountId)
-          .then(() => {
-            if (selectedConversationId) {
-              return loadMessages(selectedConversationId);
-            }
-            return undefined;
-          })
-          .catch(() => undefined);
-      }
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [isAuthenticated, activeMenu, logType, selectedAccountId, selectedConversationId, loadPlatformStatus, loadPlatformLogs, loadOneBotStatus, loadOneBotConnections, loadLogs, loadStatistics, loadConversations, loadMessages]);
+  // 使用 React Query 的 useMutation 来处理修改操作
+  const createAccountMutation = useMutation({
+    mutationFn: (account: { name: string; appId: string; appSecret: string }) =>
+      api<BotAccount>('/api/accounts', {
+        method: 'POST',
+        body: JSON.stringify(account)
+      }),
+    onSuccess: (created) => {
+      showSuccess(`QQ 官方账号"${created.name}"已创建，请点击启动。`);
+      setNewAccount({ name: '', appId: '', appSecret: '' });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setSelectedAccountId(created.id);
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const createAccount = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      const created = await api<BotAccount>('/api/accounts', {
-        method: 'POST',
-        body: JSON.stringify(newAccount)
-      });
-      showSuccess(`QQ 官方账号"${created.name}"已创建，请点击启动。`);
-      setNewAccount({ name: '', appId: '', appSecret: '' });
-      await loadAccounts();
-      setSelectedAccountId(created.id);
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    createAccountMutation.mutate(newAccount);
   };
 
-  const createOneBotAccount = async (e: FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const created = await api<BotAccount>('/api/onebot/accounts', {
+  const createOneBotAccountMutation = useMutation({
+    mutationFn: (account: { name: string; selfId: string }) =>
+      api<BotAccount>('/api/onebot/accounts', {
         method: 'POST',
-        body: JSON.stringify(newOneBotAccount)
-      });
+        body: JSON.stringify(account)
+      }),
+    onSuccess: (created) => {
       showSuccess(`OneBot 账号"${created.name}"已创建，请启动后为客户端创建 Token。`);
       setNewOneBotAccount({ name: '', selfId: '' });
       setCreatedOneBotToken(null);
-      await loadAccounts();
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       setSelectedAccountId(created.id);
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
+    },
+    onError: (error) => {
+      showError((error as Error).message);
     }
+  });
+
+  const createOneBotAccount = async (e: FormEvent) => {
+    e.preventDefault();
+    createOneBotAccountMutation.mutate(newOneBotAccount);
   };
+
+  const createOneBotTokenMutation = useMutation({
+    mutationFn: (data: { accountId: string; name: string }) =>
+      api<OneBotCreateTokenResponse>('/api/onebot/tokens', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    onSuccess: (created) => {
+      setCreatedOneBotToken(created);
+      setNewOneBotTokenName('');
+      queryClient.invalidateQueries({ queryKey: ['oneBotStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['oneBotConnections'] });
+      showSuccess(`OneBot Token "${created.item.name}" 已创建，请立即保存。`);
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const createOneBotToken = async (e: FormEvent) => {
     e.preventDefault();
@@ -312,42 +302,50 @@ function App() {
       return;
     }
 
-    setLoading(true);
-    try {
-      const created = await api<OneBotCreateTokenResponse>('/api/onebot/tokens', {
-        method: 'POST',
-        body: JSON.stringify({
-          accountId: selectedAccountId,
-          name: newOneBotTokenName,
-        }),
-      });
-      setCreatedOneBotToken(created);
-      setNewOneBotTokenName('');
-      await Promise.all([loadOneBotStatus(), loadOneBotConnections()]);
-      showSuccess(`OneBot Token "${created.item.name}" 已创建，请立即保存。`);
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    createOneBotTokenMutation.mutate({ accountId: selectedAccountId, name: newOneBotTokenName });
   };
+
+  const toggleAccountMutation = useMutation({
+    mutationFn: ({ accountId, action }: { accountId: string; action: string }) =>
+      api(`/api/accounts/${accountId}/${action}`, { method: 'POST' }),
+    onSuccess: (_, variables) => {
+      const { accountId, action } = variables;
+      const account = accounts.find(a => a.id === accountId);
+      if (account) {
+        showSuccess(`账号"${account.name}"已${action === 'start' ? '启动' : '停用'}。`);
+        queryClient.invalidateQueries({ queryKey: ['accounts'] });
+        if (account.platformType === 'onebot_v11') {
+          queryClient.invalidateQueries({ queryKey: ['oneBotStatus'] });
+          queryClient.invalidateQueries({ queryKey: ['oneBotConnections'] });
+        }
+      }
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const toggleAccount = async (account: BotAccount) => {
     const action = account.status === 'ONLINE' ? 'stop' : 'start';
-    setLoading(true);
-    try {
-      await api(`/api/accounts/${account.id}/${action}`, { method: 'POST' });
-      await loadAccounts();
-      if (account.platformType === 'onebot_v11') {
-        await Promise.all([loadOneBotStatus(), loadOneBotConnections()]);
-      }
-      showSuccess(`账号"${account.name}"已${action === 'start' ? '启动' : '停用'}。`);
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    toggleAccountMutation.mutate({ accountId: account.id, action });
   };
+
+  const sendMessageMutation = useMutation({
+    mutationFn: (data: { accountId: string; targetType: 'user' | 'group'; targetId: string; text: string }) =>
+      api<{ status: string }>('/api/messages/send', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    onSuccess: (sendResult, variables) => {
+      showSuccess(`消息发送完成：${sendResult.status}`);
+      setSendForm((prev) => ({ ...prev, text: '' }));
+      queryClient.invalidateQueries({ queryKey: ['conversations', variables.accountId] });
+      queryClient.invalidateQueries({ queryKey: ['platformLogs'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const sendMessage = async (e: FormEvent) => {
     e.preventDefault();
@@ -356,30 +354,29 @@ function App() {
       return;
     }
 
-    setLoading(true);
-    try {
-      const sendResult = await api<{ status: string }>('/api/messages/send', {
-        method: 'POST',
-        body: JSON.stringify({
-          accountId: selectedAccountId,
-          targetType: sendForm.targetType,
-          targetId: sendForm.targetId,
-          text: sendForm.text
-        })
-      });
-      showSuccess(`消息发送完成：${sendResult.status}`);
-      setSendForm((prev) => ({ ...prev, text: '' }));
-      await loadConversations(selectedAccountId);
-      if (selectedConversationId) {
-        await loadMessages(selectedConversationId);
-      }
-      await loadPlatformLogs();
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    sendMessageMutation.mutate({
+      accountId: selectedAccountId,
+      targetType: sendForm.targetType,
+      targetId: sendForm.targetId,
+      text: sendForm.text
+    });
   };
+
+  const connectPlatformMutation = useMutation({
+    mutationFn: (accountId: string) =>
+      api('/api/platform/connect', {
+        method: 'POST',
+        body: JSON.stringify({ accountId })
+      }),
+    onSuccess: () => {
+      showSuccess('已触发连接 QQ 平台。');
+      queryClient.invalidateQueries({ queryKey: ['platformStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['platformLogs'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const connectPlatform = async () => {
     if (!selectedAccountId) {
@@ -387,112 +384,126 @@ function App() {
       return;
     }
 
-    setLoading(true);
-    try {
-      await api('/api/platform/connect', {
-        method: 'POST',
-        body: JSON.stringify({ accountId: selectedAccountId })
-      });
-      await Promise.all([loadPlatformStatus(), loadPlatformLogs()]);
-      showSuccess('已触发连接 QQ 平台。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    connectPlatformMutation.mutate(selectedAccountId);
   };
 
-  const disconnectPlatform = async () => {
-    setLoading(true);
-    try {
-      await api('/api/platform/disconnect', { method: 'POST', body: JSON.stringify({}) });
-      await Promise.all([loadPlatformStatus(), loadPlatformLogs()]);
+  const disconnectPlatformMutation = useMutation({
+    mutationFn: () =>
+      api('/api/platform/disconnect', { method: 'POST', body: JSON.stringify({}) }),
+    onSuccess: () => {
       showSuccess('已断开 QQ 平台连接。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
+      queryClient.invalidateQueries({ queryKey: ['platformStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['platformLogs'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
     }
+  });
+
+  const disconnectPlatform = async () => {
+    disconnectPlatformMutation.mutate();
   };
+
+  const saveConfigMutation = useMutation({
+    mutationFn: (config: AppConfig) =>
+      api('/api/config', { method: 'POST', body: JSON.stringify(config) }),
+    onSuccess: () => {
+      showSuccess('配置已保存。');
+      queryClient.invalidateQueries({ queryKey: ['config'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const saveConfig = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      await api('/api/config', { method: 'POST', body: JSON.stringify(config) });
-      await loadConfig();
-      showSuccess('配置已保存。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
+    if (config) {
+      saveConfigMutation.mutate(config);
     }
   };
+
+  const togglePluginMutation = useMutation({
+    mutationFn: (pluginId: string) =>
+      api(`/api/plugins/${pluginId}/toggle`, { method: 'POST' }),
+    onSuccess: () => {
+      showSuccess('插件状态已更新。');
+      queryClient.invalidateQueries({ queryKey: ['plugins'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const togglePlugin = async (pluginId: string) => {
-    setLoading(true);
-    try {
-      await api(`/api/plugins/${pluginId}/toggle`, { method: 'POST' });
-      await loadPlugins();
-      showSuccess('插件状态已更新。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    togglePluginMutation.mutate(pluginId);
   };
+
+  const reloadPluginMutation = useMutation({
+    mutationFn: (pluginId: string) =>
+      api(`/api/plugins/${pluginId}/reload`, { method: 'POST' }),
+    onSuccess: () => {
+      showSuccess('插件已重新加载。');
+      queryClient.invalidateQueries({ queryKey: ['plugins'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const reloadPlugin = async (pluginId: string) => {
-    setLoading(true);
-    try {
-      await api(`/api/plugins/${pluginId}/reload`, { method: 'POST' });
-      await loadPlugins();
-      showSuccess('插件已重新加载。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    reloadPluginMutation.mutate(pluginId);
   };
+
+  const deletePluginMutation = useMutation({
+    mutationFn: (pluginId: string) =>
+      api(`/api/plugins/${pluginId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      showSuccess('插件已删除。');
+      queryClient.invalidateQueries({ queryKey: ['plugins'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const deletePlugin = async (pluginId: string) => {
-    setLoading(true);
-    try {
-      await api(`/api/plugins/${pluginId}`, { method: 'DELETE' });
-      await loadPlugins();
-      showSuccess('插件已删除。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    deletePluginMutation.mutate(pluginId);
   };
+
+  const updatePluginConfigMutation = useMutation({
+    mutationFn: (config: PluginConfig) =>
+      api('/api/plugins/config', { method: 'PUT', body: JSON.stringify(config) }),
+    onSuccess: () => {
+      showSuccess('插件配置已更新。');
+      queryClient.invalidateQueries({ queryKey: ['pluginConfig'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const updatePluginConfig = async (config: Partial<PluginConfig>) => {
-    setLoading(true);
-    try {
+    if (pluginConfig) {
       const newConfig = { ...pluginConfig, ...config } as PluginConfig;
-      await api('/api/plugins/config', { method: 'PUT', body: JSON.stringify(newConfig) });
-      setPluginConfig(newConfig);
-      showSuccess('插件配置已更新。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
+      updatePluginConfigMutation.mutate(newConfig);
     }
   };
 
-  const uploadPlugin = async (filename: string, content: string) => {
-    setLoading(true);
-    try {
-      await api('/api/plugins/upload', { method: 'POST', body: JSON.stringify({ filename, content }) });
-      await loadPlugins();
+  const uploadPluginMutation = useMutation({
+    mutationFn: (data: { filename: string; content: string }) =>
+      api('/api/plugins/upload', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
       showSuccess('插件已上传。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
+      queryClient.invalidateQueries({ queryKey: ['plugins'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
     }
+  });
+
+  const uploadPlugin = async (filename: string, content: string) => {
+    uploadPluginMutation.mutate({ filename, content });
   };
 
   const loadPluginSource = async (id: string) => {
@@ -500,61 +511,73 @@ function App() {
     return data;
   };
 
-  const savePluginSource = async (id: string, content: string) => {
-    setLoading(true);
-    try {
-      await api(`/api/plugins/${id}/source`, { method: 'PUT', body: JSON.stringify({ content }) });
-      await loadPlugins();
+  const savePluginSourceMutation = useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      api(`/api/plugins/${id}/source`, { method: 'PUT', body: JSON.stringify({ content }) }),
+    onSuccess: () => {
       showSuccess('插件源码已保存。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
+      queryClient.invalidateQueries({ queryKey: ['plugins'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
     }
+  });
+
+  const savePluginSource = async (id: string, content: string) => {
+    savePluginSourceMutation.mutate({ id, content });
   };
+
+  const createOpenApiTokenMutation = useMutation({
+    mutationFn: (name: string) =>
+      api<{ token: string; name: string }>('/api/openapi/tokens', { method: 'POST', body: JSON.stringify({ name }) }),
+    onSuccess: (created) => {
+      setNewTokenName('');
+      queryClient.invalidateQueries({ queryKey: ['openApi'] });
+      showSuccess(`OpenAPI Token 已创建。Token: ${created.token}（请立即保存，此值仅显示一次）`);
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const createOpenApiToken = async () => {
     if (!newTokenName.trim()) {
       showError('请输入 Token 名称。');
       return;
     }
-    setLoading(true);
-    try {
-      const created = await api<{ token: string; name: string }>('/api/openapi/tokens', { method: 'POST', body: JSON.stringify({ name: newTokenName }) });
-      setNewTokenName('');
-      await loadOpenApi();
-      showSuccess(`OpenAPI Token 已创建。Token: ${created.token}（请立即保存，此值仅显示一次）`);
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    createOpenApiTokenMutation.mutate(newTokenName);
   };
+
+  const toggleOpenApiTokenMutation = useMutation({
+    mutationFn: (tokenId: string) =>
+      api(`/api/openapi/tokens/${tokenId}/toggle`, { method: 'POST' }),
+    onSuccess: () => {
+      showSuccess('OpenAPI Token 状态已更新。');
+      queryClient.invalidateQueries({ queryKey: ['openApi'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
+    }
+  });
 
   const toggleOpenApiToken = async (tokenId: string) => {
-    setLoading(true);
-    try {
-      await api(`/api/openapi/tokens/${tokenId}/toggle`, { method: 'POST' });
-      await loadOpenApi();
-      showSuccess('OpenAPI Token 状态已更新。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    toggleOpenApiTokenMutation.mutate(tokenId);
   };
 
-  const deleteOpenApiToken = async (tokenId: string) => {
-    setLoading(true);
-    try {
-      await api(`/api/openapi/tokens/${tokenId}`, { method: 'DELETE' });
-      await loadOpenApi();
+  const deleteOpenApiTokenMutation = useMutation({
+    mutationFn: (tokenId: string) =>
+      api(`/api/openapi/tokens/${tokenId}`, { method: 'DELETE' }),
+    onSuccess: () => {
       showSuccess('OpenAPI Token 已删除。');
-    } catch (err) {
-      showError((err as Error).message);
-    } finally {
-      setLoading(false);
+      queryClient.invalidateQueries({ queryKey: ['openApi'] });
+    },
+    onError: (error) => {
+      showError((error as Error).message);
     }
+  });
+
+  const deleteOpenApiToken = async (tokenId: string) => {
+    deleteOpenApiTokenMutation.mutate(tokenId);
   };
 
   const menuItems: { key: MenuKey; label: string }[] = [
@@ -643,13 +666,32 @@ function App() {
     }
   };
 
+  // 检查是否有任何mutation正在加载
+  const isMutating = createAccountMutation.isPending ||
+    createOneBotAccountMutation.isPending ||
+    createOneBotTokenMutation.isPending ||
+    toggleAccountMutation.isPending ||
+    sendMessageMutation.isPending ||
+    connectPlatformMutation.isPending ||
+    disconnectPlatformMutation.isPending ||
+    saveConfigMutation.isPending ||
+    togglePluginMutation.isPending ||
+    reloadPluginMutation.isPending ||
+    deletePluginMutation.isPending ||
+    updatePluginConfigMutation.isPending ||
+    uploadPluginMutation.isPending ||
+    savePluginSourceMutation.isPending ||
+    createOpenApiTokenMutation.isPending ||
+    toggleOpenApiTokenMutation.isPending ||
+    deleteOpenApiTokenMutation.isPending;
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* 桌面端侧边栏 */}
-      <Sidebar className={theme === 'dark' ? 'bg-gradient-to-b from-slate-900 to-slate-800 text-white' : 'bg-gradient-to-b from-slate-100 to-white text-slate-900 border-r'}>
-        <SidebarHeader className={theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}>
-          <span className="text-2xl">🤖</span>
-          <span className="font-semibold text-lg">{config.webName || 'Wawa-QQbot'}</span>
+      <Sidebar>
+        <SidebarHeader>
+          <span className="text-2xl transition-transform duration-300 ease-in-out hover:scale-110">🤖</span>
+          <span className="font-semibold text-lg transition-all duration-300 ease-in-out">{config?.webName || 'Wawa-QQbot'}</span>
         </SidebarHeader>
         <SidebarContent>
           <SidebarNav>
@@ -659,14 +701,6 @@ function App() {
                 active={activeMenu === item.key}
                 icon={getMenuIcon(item.key)}
                 onClick={() => setActiveMenu(item.key)}
-                className={activeMenu === item.key
-                  ? theme === 'dark'
-                    ? 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/30'
-                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                  : theme === 'dark'
-                    ? 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }
               >
                 {item.label}
               </SidebarNavItem>
@@ -675,26 +709,29 @@ function App() {
         </SidebarContent>
       </Sidebar>
 
-      <main className="flex-1 flex flex-col overflow-hidden h-full pb-[calc(3.5rem+env(safe-area-inset-bottom,0))] md:pb-0">
+      <main className="flex-1 flex flex-col overflow-hidden h-full pb-[calc(4rem+env(safe-area-inset-bottom,0))] md:pb-0">
         {/* 桌面端头部 */}
-        <header className="hidden md:flex items-center justify-between px-6 py-4 border-b bg-card shrink-0">
-          <h1 className="text-xl font-semibold">{config.webName || 'Wawa-QQbot 控制台'}</h1>
-          <div className="flex items-center gap-4">
+        <header className="hidden md:flex items-center justify-between px-8 py-4 border-b bg-card shrink-0 shadow-sm transition-all duration-300 ease-in-out">
+          <h1 className="text-xl font-semibold transition-all duration-300 ease-in-out">{config?.webName || 'Wawa-QQbot 控制台'}</h1>
+          <div className="flex items-center gap-5">
             <ThemeToggle />
-            <Badge variant={platformStatus.connected ? 'success' : 'secondary'}>
-              平台状态：{platformStatus.connected ? '已连接' : platformStatus.connecting ? '连接中' : '未连接'}
-            </Badge>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/70 transition-all duration-200 ease-in-out">
+              <span className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ease-in-out ${platformStatus?.connected ? 'bg-green-500 scale-110' : platformStatus?.connecting ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`}></span>
+              <span className="text-sm font-medium text-muted-foreground transition-all duration-200 ease-in-out">
+                {platformStatus?.connected ? '已连接' : platformStatus?.connecting ? '连接中' : '未连接'}
+              </span>
+            </div>
             {user && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-foreground">
+              <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-all duration-200 ease-in-out">
+                <span className="text-sm font-medium text-foreground">
                   {user.username}
-                  <span className="ml-1 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded dark:bg-blue-900 dark:text-blue-300">
+                  <span className="ml-1.5 text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full font-medium">
                     {user.role === 'admin' ? '管理员' : '用户'}
                   </span>
                 </span>
                 <button
                   onClick={logout}
-                  className="text-sm text-red-600 hover:text-red-700 hover:underline"
+                  className="text-sm font-medium text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-all duration-200 ease-in-out"
                 >
                   退出登录
                 </button>
@@ -705,148 +742,177 @@ function App() {
 
         {/* 移动端头部 */}
         <MobileHeader
-          title={config.webName || 'Wawa-QQbot'}
-          platformStatus={platformStatus}
+          title={config?.webName || 'Wawa-QQbot'}
+          platformStatus={platformStatus || { connected: false, connecting: false }}
           user={user}
           onLogout={logout}
         />
 
         {/* 移动端状态指示栏 */}
-        <div className="md:hidden flex items-center justify-between px-4 py-2 bg-muted/30 border-b text-xs">
+        <div className="md:hidden flex items-center justify-between px-4 py-2 bg-muted/30 border-b text-xs transition-all duration-300 ease-in-out">
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${platformStatus.connected ? 'bg-green-500' : platformStatus.connecting ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`}></span>
-            <span className="text-foreground">
-              {platformStatus.connected ? '已连接' : platformStatus.connecting ? '连接中' : '未连接'}
+            <span className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ease-in-out ${platformStatus?.connected ? 'bg-green-500 scale-110' : platformStatus?.connecting ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`}></span>
+            <span className="text-foreground font-medium">
+              {platformStatus?.connected ? '已连接' : platformStatus?.connecting ? '连接中' : '未连接'}
             </span>
           </div>
           <ThemeToggle />
         </div>
 
-        {(loading || notice || config.notice) && (
+        {(isMutating || notice || config?.notice) && (
           <div className={cn(
-            "px-4 md:px-6 py-2 md:py-3 border-b",
-            loading ? "bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800" :
+            "px-4 md:px-8 py-3 md:py-4 border-b transition-all duration-300 ease-in-out",
+            isMutating ? "bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800" :
             noticeSeverity === 'error' ? "bg-red-50 dark:bg-red-950/50 border-red-200 dark:border-red-800" :
             noticeSeverity === 'success' ? "bg-green-50 dark:bg-green-950/50 border-green-200 dark:border-green-800" :
             "bg-muted/50"
           )}>
             <p className={cn(
-              "text-sm truncate flex items-center gap-2",
-              loading ? "text-blue-700 dark:text-blue-300" :
+              "text-sm md:text-base truncate flex items-center gap-2",
+              isMutating ? "text-blue-700 dark:text-blue-300" :
               noticeSeverity === 'error' ? "text-red-700 dark:text-red-300" :
               noticeSeverity === 'success' ? "text-green-700 dark:text-green-300" :
               "text-foreground"
             )}>
-              {loading && <span className="animate-spin">⏳</span>}
+              {isMutating && <span className="animate-spin">⏳</span>}
               {noticeSeverity === 'error' && <span>❌</span>}
               {noticeSeverity === 'success' && <span>✅</span>}
-              {loading ? '处理中，请稍候...' : notice || config.notice}
+              {isMutating ? '处理中，请稍候...' : notice || config?.notice}
             </p>
           </div>
         )}
 
-        {activeMenu === 'home' && (
-          <HomePage
-            accounts={accounts}
-            platformStatus={platformStatus}
-            snapshot={snapshot}
-            plugins={plugins}
-            config={config}
-            onNavigate={setActiveMenu}
-          />
-        )}
+        <div className="flex-1 min-h-0 overflow-auto p-4 md:p-6 lg:p-8 transition-all duration-300 ease-in-out">
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="flex items-center gap-3">
+                <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <span>加载中...</span>
+              </div>
+            </div>
+          }>
+            {activeMenu === 'home' && (
+              <HomePage
+                accounts={accounts}
+                platformStatus={platformStatus || { connected: false, connecting: false, connectedAccountId: null, connectedAccountName: null, lastConnectedAt: null, tokenExpiresAt: null, lastError: null }}
+                snapshot={snapshot}
+                plugins={plugins}
+                config={config || { webName: 'Wawa-QQbot', notice: '欢迎使用 Wawa-QQbot 智能机器人管理平台', allowOpenApi: false, defaultIntent: 0, pluginPermissions: {}, updatedAt: new Date().toISOString() }}
+                onNavigate={setActiveMenu}
+              />
+            )}
 
-        {activeMenu === 'accounts' && (
-          <AccountsPanel
-            accounts={accounts}
-            selectedAccountId={selectedAccountId}
-            newAccount={newAccount}
-            newOneBotAccount={newOneBotAccount}
-            onNewAccountChange={setNewAccount}
-            onNewOneBotAccountChange={setNewOneBotAccount}
-            onCreateAccount={createAccount}
-            onCreateOneBotAccount={createOneBotAccount}
-            onSelectAccount={setSelectedAccountId}
-            onToggleAccount={toggleAccount}
-          />
-        )}
+            {activeMenu === 'accounts' && (
+              <AccountsPanel
+                accounts={accounts}
+                selectedAccountId={selectedAccountId}
+                newAccount={newAccount}
+                newOneBotAccount={newOneBotAccount}
+                onNewAccountChange={setNewAccount}
+                onNewOneBotAccountChange={setNewOneBotAccount}
+                onCreateAccount={createAccount}
+                onCreateOneBotAccount={createOneBotAccount}
+                onSelectAccount={setSelectedAccountId}
+                onToggleAccount={toggleAccount}
+              />
+            )}
 
-        {activeMenu === 'chat' && (
-          <div className="flex-1 min-h-0 overflow-hidden p-4 lg:p-6">
-            <ChatPanel
-              accounts={accounts}
-              platformStatus={platformStatus}
+            {activeMenu === 'chat' && (
+              <ChatPanel
+                accounts={accounts}
+                platformStatus={platformStatus || { connected: false, connecting: false, connectedAccountId: null, connectedAccountName: null, lastConnectedAt: null, tokenExpiresAt: null, lastError: null }}
+              />
+            )}
+
+            {activeMenu === 'platform' && (
+              <PlatformPanel
+                platformStatus={platformStatus || { connected: false, connecting: false, connectedAccountId: null, connectedAccountName: null, lastConnectedAt: null, tokenExpiresAt: null, lastError: null }}
+                platformLogs={platformLogs}
+                accounts={accounts}
+                selectedAccountId={selectedAccountId}
+                oneBotStatus={oneBotStatus || null}
+                oneBotConnections={oneBotConnections}
+                tokenName={newOneBotTokenName}
+                createdToken={createdOneBotToken}
+                onTokenNameChange={setNewOneBotTokenName}
+                onCreateToken={createOneBotToken}
+                onConnect={connectPlatform}
+                onDisconnect={disconnectPlatform}
+                onRefresh={() => {
+                  queryClient.invalidateQueries({ queryKey: ['platformStatus'] });
+                  queryClient.invalidateQueries({ queryKey: ['platformLogs'] });
+                  queryClient.invalidateQueries({ queryKey: ['oneBotStatus'] });
+                  queryClient.invalidateQueries({ queryKey: ['oneBotConnections'] });
+                }}
+              />
+            )}
+
+            {activeMenu === 'config' && config && <ConfigPanel config={config} onChange={(newConfig) => {}} onSave={saveConfig} />}
+
+            {activeMenu === 'logs' && (
+            <LogsPanel
+              logs={logs}
+              logType={logType}
+              onChangeType={(next: 'all' | 'framework' | 'plugin' | 'openapi' | 'config') => {
+                setLogType(next);
+              }}
+              onRefresh={() => {
+                queryClient.invalidateQueries({ queryKey: ['logs', logType] });
+              }}
             />
-          </div>
-        )}
+          )}
 
-        {activeMenu === 'platform' && (
-          <PlatformPanel
-            platformStatus={platformStatus}
-            platformLogs={platformLogs}
-            accounts={accounts}
-            selectedAccountId={selectedAccountId}
-            oneBotStatus={oneBotStatus}
-            oneBotConnections={oneBotConnections}
-            tokenName={newOneBotTokenName}
-            createdToken={createdOneBotToken}
-            onTokenNameChange={setNewOneBotTokenName}
-            onCreateToken={createOneBotToken}
-            onConnect={connectPlatform}
-            onDisconnect={disconnectPlatform}
-            onRefresh={() => {
-              loadPlatformStatus().catch((e: Error) => showError(e.message));
-              loadPlatformLogs().catch((e: Error) => showError(e.message));
-              loadOneBotStatus().catch((e: Error) => showError(e.message));
-              loadOneBotConnections().catch((e: Error) => showError(e.message));
-            }}
-          />
-        )}
+            {activeMenu === 'statistics' && (
+              <StatisticsPanel snapshot={snapshot} onRefresh={() => {
+                queryClient.invalidateQueries({ queryKey: ['statistics'] });
+              }} />
+            )}
 
-        {activeMenu === 'config' && <ConfigPanel config={config} onChange={setConfig} onSave={saveConfig} />}
+            {activeMenu === 'openapi' && (
+              <OpenApiPanel
+                enabled={openApiEnabled}
+                tokens={openApiTokens}
+                newTokenName={newTokenName}
+                onTokenNameChange={setNewTokenName}
+                onCreateToken={createOpenApiToken}
+                onToggleToken={toggleOpenApiToken}
+                onDeleteToken={deleteOpenApiToken}
+                onRefresh={() => {
+                  queryClient.invalidateQueries({ queryKey: ['openApi'] });
+                }}
+              />
+            )}
 
-        {activeMenu === 'logs' && (
-          <LogsPanel
-            logs={logs}
-            logType={logType}
-            onChangeType={(next) => {
-              setLogType(next);
-              loadLogs(next).catch((e: Error) => showError(e.message));
-            }}
-            onRefresh={() => loadLogs().catch((e: Error) => showError(e.message))}
-          />
-        )}
-
-        {activeMenu === 'statistics' && (
-          <StatisticsPanel snapshot={snapshot} onRefresh={() => loadStatistics().catch((e: Error) => showError(e.message))} />
-        )}
-
-        {activeMenu === 'openapi' && (
-          <OpenApiPanel
-            enabled={openApiEnabled}
-            tokens={openApiTokens}
-            newTokenName={newTokenName}
-            onTokenNameChange={setNewTokenName}
-            onCreateToken={createOpenApiToken}
-            onToggleToken={toggleOpenApiToken}
-            onDeleteToken={deleteOpenApiToken}
-            onRefresh={() => loadOpenApi().catch((e: Error) => showError(e.message))}
-          />
-        )}
-
-        {activeMenu === 'plugins' && (
-          <PluginsPanel
-            plugins={plugins}
-            pluginConfig={pluginConfig}
-            onTogglePlugin={togglePlugin}
-            onReloadPlugin={reloadPlugin}
-            onDeletePlugin={deletePlugin}
-            onUpdateConfig={updatePluginConfig}
-            onUploadPlugin={uploadPlugin}
-            onLoadPluginSource={loadPluginSource}
-            onSavePluginSource={savePluginSource}
-          />
-        )}
+            {activeMenu === 'plugins' && (
+              <PluginsPanel
+                plugins={plugins}
+                pluginConfig={pluginConfig || null}
+                onTogglePlugin={togglePlugin}
+                onReloadPlugin={reloadPlugin}
+                onDeletePlugin={deletePlugin}
+                onUpdateConfig={updatePluginConfig}
+                onUploadPlugin={uploadPlugin}
+                onLoadPluginSource={loadPluginSource}
+                onSavePluginSource={savePluginSource}
+              />
+            )}
+          </Suspense>
+        </div>
       </main>
 
       {/* 移动端底部导航 */}
@@ -863,10 +929,10 @@ function App() {
           onClick={() => setShowMoreMenu(false)}
         >
           <div
-            className="absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom,0))] left-0 right-0 bg-card border-t rounded-t-2xl p-4 animate-slide-up-modal"
+            className="absolute bottom-[calc(4rem+env(safe-area-inset-bottom,0))] left-0 right-0 bg-card border-t rounded-t-2xl p-5 animate-slide-up-modal shadow-2xl shadow-black/10"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-4 gap-5">
               {menuItems.filter(item => !['home', 'chat', 'platform', 'plugins'].includes(item.key)).map((item) => (
                 <button
                   key={item.key}
@@ -874,19 +940,19 @@ function App() {
                     setActiveMenu(item.key);
                     setShowMoreMenu(false);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all"
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all duration-200 ease-in-out"
                 >
-                  <span className="text-2xl">{getMenuIcon(item.key)}</span>
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
+                  <span className="text-2xl transition-transform duration-200 ease-in-out hover:scale-110">{getMenuIcon(item.key)}</span>
+                  <span className="text-xs font-medium text-muted-foreground transition-all duration-200 ease-in-out">{item.label}</span>
                 </button>
               ))}
             </div>
             {/* 用户信息和退出按钮 */}
             {user && (
-              <div className="mt-4 pt-4 border-t flex items-center justify-between">
+              <div className="mt-5 pt-5 border-t flex items-center justify-between transition-all duration-200 ease-in-out">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{user.username}</span>
-                  <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded dark:bg-blue-900 dark:text-blue-300">
+                  <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full font-medium">
                     {user.role === 'admin' ? '管理员' : '用户'}
                   </span>
                 </div>
@@ -895,7 +961,7 @@ function App() {
                     logout();
                     setShowMoreMenu(false);
                   }}
-                  className="text-sm text-red-600 hover:text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                  className="text-sm font-medium text-destructive hover:bg-destructive/10 px-4 py-2 rounded-lg transition-all duration-200 ease-in-out"
                 >
                   退出登录
                 </button>

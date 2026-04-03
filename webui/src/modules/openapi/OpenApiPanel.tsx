@@ -190,9 +190,30 @@ export function OpenApiPanel({
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      } else {
+        // 降级方案：使用传统的文本选择和复制
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          setCopiedId(id);
+          setTimeout(() => setCopiedId(null), 2000);
+        } catch (err) {
+          console.error('复制失败:', err);
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
     } catch (err) {
       console.error('复制失败:', err);
     }

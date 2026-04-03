@@ -2,10 +2,12 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 
 type Theme = 'light' | 'dark';
 
-interface ThemeContextType {
+export interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  isDark: boolean;
+  isLight: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -35,11 +37,17 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   useEffect(() => {
     // 应用主题到 document
     const root = document.documentElement;
+    
+    // 为主题切换添加过渡效果
+    root.style.transition = 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease';
+    
+    // 添加主题切换类，触发全局过渡效果
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
+    
     // 保存到 localStorage
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
@@ -67,8 +75,16 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     setThemeState(newTheme);
   };
 
+  const value = {
+    theme,
+    toggleTheme,
+    setTheme,
+    isDark: theme === 'dark',
+    isLight: theme === 'light'
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

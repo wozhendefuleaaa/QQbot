@@ -56,8 +56,7 @@ function Star({ className, style }: { className?: string; style?: React.CSSPrope
 }
 
 export function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-  const isDark = theme === 'dark';
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <button
@@ -67,17 +66,20 @@ export function ThemeToggle() {
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
         "overflow-hidden",
         "shadow-lg hover:shadow-xl",
+        "transform hover:scale-105 active:scale-95",
         isDark
           ? 'bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 focus-visible:ring-slate-400'
           : 'bg-gradient-to-br from-sky-300 via-blue-400 to-indigo-400 focus-visible:ring-blue-400'
       )}
       title={isDark ? '切换到浅色模式' : '切换到深色模式'}
+      aria-label={isDark ? '切换到浅色模式' : '切换到深色模式'}
     >
       {/* 背景装饰 - 云朵 (浅色模式) */}
       <span
         className={cn(
-          "absolute top-1/2 -translate-y-1/2 transition-all duration-500",
-          isDark ? 'opacity-0 -translate-x-4' : 'opacity-100 translate-x-0'
+          "absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-in-out",
+          "left-4",
+          isDark ? 'opacity-0 -translate-x-4 scale-90' : 'opacity-100 translate-x-0 scale-100'
         )}
       >
         <span className="absolute left-2 top-0 w-4 h-2 bg-white/40 rounded-full blur-[1px]" />
@@ -88,7 +90,7 @@ export function ThemeToggle() {
       {/* 背景装饰 - 星星 (深色模式) */}
       <span
         className={cn(
-          "absolute inset-0 transition-opacity duration-500",
+          "absolute inset-0 transition-opacity duration-500 ease-in-out",
           isDark ? 'opacity-100' : 'opacity-0'
         )}
       >
@@ -114,15 +116,15 @@ export function ThemeToggle() {
       <span
         className={cn(
           "absolute left-0 top-0 w-1/2 h-full flex items-center justify-center",
-          "transition-all duration-300"
+          "transition-all duration-300 ease-in-out"
         )}
       >
         <SunIcon
           className={cn(
-            "w-4 h-4 transition-all duration-300",
+            "w-4 h-4 transition-all duration-300 ease-in-out",
             isDark
-              ? 'text-slate-500/50 scale-75'
-              : 'text-yellow-100 scale-100'
+              ? 'text-slate-500/50 scale-75 opacity-50'
+              : 'text-yellow-100 scale-100 opacity-100'
           )}
         />
       </span>
@@ -131,15 +133,15 @@ export function ThemeToggle() {
       <span
         className={cn(
           "absolute right-0 top-0 w-1/2 h-full flex items-center justify-center",
-          "transition-all duration-300"
+          "transition-all duration-300 ease-in-out"
         )}
       >
         <MoonIcon
           className={cn(
-            "w-4 h-4 transition-all duration-300",
+            "w-4 h-4 transition-all duration-300 ease-in-out",
             isDark
-              ? 'text-slate-300 scale-100'
-              : 'text-slate-400/30 scale-75'
+              ? 'text-slate-300 scale-100 opacity-100'
+              : 'text-slate-400/30 scale-75 opacity-50'
           )}
         />
       </span>
@@ -158,7 +160,7 @@ export function ThemeToggle() {
         {/* 光晕效果 */}
         <span
           className={cn(
-            "absolute inset-0 rounded-full transition-opacity duration-500",
+            "absolute inset-0 rounded-full transition-opacity duration-500 ease-in-out",
             isDark
               ? 'bg-gradient-to-br from-slate-400/20 to-slate-500/20 animate-glow-dark'
               : 'bg-gradient-to-br from-yellow-200/40 to-orange-200/40 animate-glow-light'
