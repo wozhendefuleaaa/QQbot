@@ -110,7 +110,26 @@ export function MessagePanel({
   const handleCopy = () => {
     const msg = messages.find((m) => m.id === selectedMsgId);
     if (msg) {
-      navigator.clipboard.writeText(msg.text);
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(msg.text);
+      } else {
+        // 降级方案：使用传统的文本选择和复制
+        const textArea = document.createElement('textarea');
+        textArea.value = msg.text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+        } catch (err) {
+          console.error('复制失败:', err);
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
     }
     closeContextMenu();
   };

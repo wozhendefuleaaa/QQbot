@@ -49,5 +49,17 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          charts: ['recharts'],
+          markdown: ['react-markdown'],
+          ui: ['@radix-ui/react-dialog', 'lucide-react']
+        }
+      }
+    }
   }
 });

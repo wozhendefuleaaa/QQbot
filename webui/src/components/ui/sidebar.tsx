@@ -4,12 +4,12 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const sidebarVariants = cva(
-  "hidden md:flex flex-col border-r bg-background",
+  "hidden md:flex flex-col border-r bg-background transition-all duration-300 ease-in-out",
   {
     variants: {
       size: {
-        default: "w-56",
-        sm: "w-48",
+        default: "w-60",
+        sm: "w-52",
         lg: "w-64",
       },
     },
@@ -27,7 +27,12 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
   ({ className, size, ...props }, ref) => (
     <aside
       ref={ref}
-      className={cn(sidebarVariants({ size }), className)}
+      className={cn(
+        sidebarVariants({ size }),
+        "shadow-lg dark:shadow-slate-900/30",
+        "backdrop-blur-sm bg-background/90 dark:bg-background/95",
+        className
+      )}
       {...props}
     />
   )
@@ -40,7 +45,12 @@ const SidebarHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center gap-2 p-4 border-b", className)}
+    className={cn(
+      "flex items-center gap-3 p-5 border-b",
+      "border-border/50",
+      "transition-all duration-300",
+      className
+    )}
     {...props}
   />
 ))
@@ -52,7 +62,11 @@ const SidebarContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex-1 overflow-auto p-2", className)}
+    className={cn(
+      "flex-1 overflow-auto p-3",
+      "scrollbar-thin scrollbar-thumb-muted/50 scrollbar-track-transparent",
+      className
+    )}
     {...props}
   />
 ))
@@ -64,19 +78,22 @@ const SidebarNav = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <nav
     ref={ref}
-    className={cn("flex flex-col gap-1", className)}
+    className={cn(
+      "flex flex-col gap-1.5",
+      className
+    )}
     {...props}
   />
 ))
 SidebarNav.displayName = "SidebarNav"
 
 const sidebarNavItemVariants = cva(
-  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+  "flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
-        default: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-        active: "bg-primary/10 text-primary font-semibold",
+        default: "text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:translate-x-1",
+        active: "bg-primary/15 text-primary font-semibold shadow-sm",
       },
     },
     defaultVariants: {
@@ -90,10 +107,11 @@ export interface SidebarNavItemProps
     VariantProps<typeof sidebarNavItemVariants> {
   active?: boolean
   icon?: React.ReactNode
+  badge?: number | string
 }
 
 const SidebarNavItem = React.forwardRef<HTMLButtonElement, SidebarNavItemProps>(
-  ({ className, variant, active, icon, children, ...props }, ref) => (
+  ({ className, variant, active, icon, children, badge, ...props }, ref) => (
     <button
       ref={ref}
       type="button"
@@ -104,8 +122,17 @@ const SidebarNavItem = React.forwardRef<HTMLButtonElement, SidebarNavItemProps>(
       )}
       {...props}
     >
-      {icon && <span className="text-lg">{icon}</span>}
-      {children}
+      {icon && (
+        <span className="text-lg transition-transform duration-200 ease-in-out">
+          {icon}
+        </span>
+      )}
+      <span className="flex-1 truncate">{children}</span>
+      {badge !== undefined && badge !== 0 && (
+        <span className="flex items-center justify-center min-w-6 h-6 px-1.5 py-0.5 bg-primary text-primary-foreground text-xs font-bold rounded-full transition-all duration-200 ease-in-out">
+          {typeof badge === 'number' && badge > 99 ? '99+' : badge}
+        </span>
+      )}
     </button>
   )
 )
@@ -136,41 +163,42 @@ const MobileNav = React.forwardRef<HTMLElement, MobileNavProps>(
         ref={ref}
         className={cn(
           "md:hidden fixed bottom-0 left-0 right-0 z-50",
-          "bg-background/95 backdrop-blur-md border-t",
+          "bg-background/98 backdrop-blur-lg border-t border-border/50",
           "safe-area-inset-bottom",
-          "transition-transform duration-300 ease-out",
+          "transition-all duration-300 ease-out",
+          "shadow-lg shadow-black/5 dark:shadow-slate-900/30",
           !visible && "translate-y-full",
           className
         )}
       >
-        <div className="flex items-center justify-around h-14 px-1">
+        <div className="flex items-center justify-around h-16 px-2">
           {items.map((item) => (
             <button
               key={item.key}
               onClick={() => onItemClick(item.key)}
               className={cn(
                 "relative flex flex-col items-center justify-center flex-1 h-full",
-                "text-xs font-medium transition-all duration-150",
+                "text-xs font-medium transition-all duration-200 ease-in-out",
                 "active:scale-90 touch-manipulation",
-                "py-1.5",
+                "py-2",
                 activeKey === item.key
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="text-xl mb-0.5 relative">
+              <span className="text-2xl mb-1 relative transition-transform duration-200 ease-in-out">
                 {item.icon}
                 {item.badge !== undefined && item.badge !== 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-5 px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-scale-in">
                     {typeof item.badge === 'number' && item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
               </span>
-              <span className="text-[10px] leading-tight truncate max-w-[4rem]">
+              <span className="text-[11px] leading-tight truncate max-w-[4rem] font-medium">
                 {item.label.length > 4 ? item.label.slice(0, 4) : item.label}
               </span>
               {activeKey === item.key && (
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                <span className="absolute bottom-2 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-primary animate-scale-in" />
               )}
             </button>
           ))}
@@ -199,49 +227,52 @@ const MobileHeader = React.forwardRef<HTMLDivElement, MobileHeaderProps>(
     <header
       ref={ref}
       className={cn(
-        "md:hidden flex items-center justify-between px-4 py-3",
-        "bg-card/95 backdrop-blur-md border-b shrink-0",
+        "md:hidden flex items-center justify-between px-4 py-4",
+        "bg-card/98 backdrop-blur-lg border-b border-border/50 shrink-0",
         "safe-area-inset-top",
         "sticky top-0 z-40",
+        "shadow-sm shadow-black/5 dark:shadow-slate-900/20",
+        "transition-all duration-300 ease-in-out",
         className
       )}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         {showBack && (
           <button
             onClick={onBack}
-            className="flex items-center justify-center w-8 h-8 -ml-1 rounded-lg hover:bg-muted active:scale-95 transition-all shrink-0"
+            className="flex items-center justify-center w-9 h-9 -ml-1 rounded-xl hover:bg-muted active:scale-95 transition-all shrink-0"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 transition-transform duration-200 ease-in-out" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
         )}
         {!showBack && (
-          <span className="text-xl shrink-0">🤖</span>
+          <span className="text-2xl shrink-0 transition-transform duration-200 ease-in-out">🤖</span>
         )}
         <div className="min-w-0">
-          <h1 className="text-base font-semibold truncate max-w-[12rem]">{title}</h1>
+          <h1 className="text-lg font-semibold truncate max-w-[12rem] transition-all duration-200 ease-in-out">{title}</h1>
           {subtitle && (
-            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+            <p className="text-xs text-muted-foreground truncate transition-all duration-200 ease-in-out">{subtitle}</p>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-3 shrink-0">
         {rightContent}
         {platformStatus && (
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-muted/50">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/70 transition-all duration-200 ease-in-out">
             <span
               className={cn(
-                "w-2 h-2 rounded-full",
+                "w-2.5 h-2.5 rounded-full",
+                "transition-all duration-300 ease-in-out",
                 platformStatus.connected
-                  ? "bg-green-500"
+                  ? "bg-green-500 scale-110"
                   : platformStatus.connecting
                   ? "bg-yellow-500 animate-pulse"
                   : "bg-gray-400"
               )}
             />
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground transition-all duration-200 ease-in-out">
               {platformStatus.connected ? '在线' : platformStatus.connecting ? '连接中' : '离线'}
             </span>
           </div>
@@ -249,7 +280,7 @@ const MobileHeader = React.forwardRef<HTMLDivElement, MobileHeaderProps>(
         {user && !platformStatus && (
           <button
             onClick={onLogout}
-            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded-md transition-colors"
+            className="text-sm font-medium text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-all duration-200 ease-in-out"
           >
             退出
           </button>
