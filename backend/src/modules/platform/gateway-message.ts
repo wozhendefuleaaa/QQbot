@@ -179,20 +179,30 @@ export async function trySendToQQ(
   targetId: string,
   text: string,
   msgId?: string,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<{ mode: 'platform' }> {
   // 等待发送槽位
   await sendRateLimiter.waitForSlot();
 
   const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
   const baseApi = qqGatewayApiBase.replace(/\/$/, '');
-  const fallbackPath = targetType === 'group' ? `/v2/groups/{targetId}/messages` : `/v2/users/{targetId}/messages`;
-  const template = qqMessageApiTemplate || `${baseApi}${fallbackPath}`;
-  const url = template.replace('{targetId}', encodeURIComponent(targetId));
-
-  if (!qqMessageApiTemplate) {
-    addPlatformLog('WARN', `未配置 QQ_MESSAGE_API_TEMPLATE，已自动使用默认发送端点：${fallbackPath}`);
+  let path: string;
+  
+  switch (targetType) {
+    case 'group':
+      path = `/v2/groups/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'channel':
+      path = `/channels/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'dms':
+      path = `/dms/${encodeURIComponent(targetId)}/messages`;
+      break;
+    default:
+      path = `/v2/users/${encodeURIComponent(targetId)}/messages`;
   }
+  
+  const url = `${baseApi}${path}`;
 
   // 检查 msg_id 是否有效（未过期）
   const useMsgId = isMsgIdValid(msgId);
@@ -237,7 +247,7 @@ export async function trySendToQQ(
       if (res.ok) {
         addPlatformLog(
           'INFO',
-          `消息已投递到 QQ 平台: target=${targetId}${useMsgId && msgId ? ` reply_msg_id=${msgId}` : ''}（账号：${account.name}，payload#${i + 1}）`
+          `消息已投递到 QQ 平台: target=${targetId} type=${targetType}${useMsgId && msgId ? ` reply_msg_id=${msgId}` : ''}（账号：${account.name}，payload#${i + 1}）`
         );
         return { mode: 'platform' };
       }
@@ -297,13 +307,26 @@ export async function recallMessage(
   account: BotAccount,
   targetId: string,
   messageId: string,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<{ success: boolean }> {
   const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
   const baseApi = qqGatewayApiBase.replace(/\/$/, '');
-  const path = targetType === 'group'
-    ? `/v2/groups/${encodeURIComponent(targetId)}/messages/${encodeURIComponent(messageId)}`
-    : `/v2/users/${encodeURIComponent(targetId)}/messages/${encodeURIComponent(messageId)}`;
+  let path: string;
+  
+  switch (targetType) {
+    case 'group':
+      path = `/v2/groups/${encodeURIComponent(targetId)}/messages/${encodeURIComponent(messageId)}`;
+      break;
+    case 'channel':
+      path = `/channels/${encodeURIComponent(targetId)}/messages/${encodeURIComponent(messageId)}`;
+      break;
+    case 'dms':
+      path = `/dms/${encodeURIComponent(targetId)}/messages/${encodeURIComponent(messageId)}`;
+      break;
+    default:
+      path = `/v2/users/${encodeURIComponent(targetId)}/messages/${encodeURIComponent(messageId)}`;
+  }
+  
   const url = `${baseApi}${path}`;
 
   try {
@@ -316,7 +339,7 @@ export async function recallMessage(
     });
 
     if (res.ok) {
-      addPlatformLog('INFO', `消息撤回成功: target=${targetId} msg=${messageId}`);
+      addPlatformLog('INFO', `消息撤回成功: target=${targetId} type=${targetType} msg=${messageId}`);
       return { success: true };
     }
 
@@ -457,16 +480,28 @@ export async function sendMarkdownMessage(
   targetId: string,
   markdown: QQMarkdownPayload,
   msgId?: string,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<{ success: boolean }> {
   // 等待发送槽位
   await sendRateLimiter.waitForSlot();
 
   const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
   const baseApi = qqGatewayApiBase.replace(/\/$/, '');
-  const path = targetType === 'group'
-    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
-    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  let path: string;
+  
+  switch (targetType) {
+    case 'group':
+      path = `/v2/groups/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'channel':
+      path = `/channels/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'dms':
+      path = `/dms/${encodeURIComponent(targetId)}/messages`;
+      break;
+    default:
+      path = `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  }
   const url = `${baseApi}${path}`;
 
   // 检查 msg_id 是否有效
@@ -518,16 +553,28 @@ export async function sendArkMessage(
   targetId: string,
   ark: QQArkPayload,
   msgId?: string,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<{ success: boolean }> {
   // 等待发送槽位
   await sendRateLimiter.waitForSlot();
 
   const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
   const baseApi = qqGatewayApiBase.replace(/\/$/, '');
-  const path = targetType === 'group'
-    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
-    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  let path: string;
+  
+  switch (targetType) {
+    case 'group':
+      path = `/v2/groups/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'channel':
+      path = `/channels/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'dms':
+      path = `/dms/${encodeURIComponent(targetId)}/messages`;
+      break;
+    default:
+      path = `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  }
   const url = `${baseApi}${path}`;
 
   // 检查 msg_id 是否有效
@@ -579,16 +626,28 @@ export async function sendEmbedMessage(
   targetId: string,
   embed: QQEmbedPayload,
   msgId?: string,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<{ success: boolean }> {
   // 等待发送槽位
   await sendRateLimiter.waitForSlot();
 
   const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
   const baseApi = qqGatewayApiBase.replace(/\/$/, '');
-  const path = targetType === 'group'
-    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
-    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  let path: string;
+  
+  switch (targetType) {
+    case 'group':
+      path = `/v2/groups/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'channel':
+      path = `/channels/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'dms':
+      path = `/dms/${encodeURIComponent(targetId)}/messages`;
+      break;
+    default:
+      path = `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  }
   const url = `${baseApi}${path}`;
 
   // 检查 msg_id 是否有效
@@ -641,16 +700,28 @@ export async function sendKeyboardMessage(
   keyboard: QQKeyboardPayload,
   content?: string,
   msgId?: string,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<{ success: boolean }> {
   // 等待发送槽位
   await sendRateLimiter.waitForSlot();
 
   const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
   const baseApi = qqGatewayApiBase.replace(/\/$/, '');
-  const path = targetType === 'group'
-    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
-    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  let path: string;
+  
+  switch (targetType) {
+    case 'group':
+      path = `/v2/groups/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'channel':
+      path = `/channels/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'dms':
+      path = `/dms/${encodeURIComponent(targetId)}/messages`;
+      break;
+    default:
+      path = `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  }
   const url = `${baseApi}${path}`;
 
   // 检查 msg_id 是否有效
@@ -705,16 +776,28 @@ export async function sendMixedMessage(
   account: BotAccount,
   targetId: string,
   payload: QQMessagePayload,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<{ success: boolean }> {
   // 等待发送槽位
   await sendRateLimiter.waitForSlot();
 
   const token = await (await import('../../core/store.js')).fetchAppAccessToken(account);
   const baseApi = qqGatewayApiBase.replace(/\/$/, '');
-  const path = targetType === 'group'
-    ? `/v2/groups/${encodeURIComponent(targetId)}/messages`
-    : `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  let path: string;
+  
+  switch (targetType) {
+    case 'group':
+      path = `/v2/groups/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'channel':
+      path = `/channels/${encodeURIComponent(targetId)}/messages`;
+      break;
+    case 'dms':
+      path = `/dms/${encodeURIComponent(targetId)}/messages`;
+      break;
+    default:
+      path = `/v2/users/${encodeURIComponent(targetId)}/messages`;
+  }
   const url = `${baseApi}${path}`;
 
   try {

@@ -59,7 +59,7 @@ export async function sendTextMessage(
   targetId: string,
   text: string,
   replyMessageId?: string,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<UnifiedSendResult> {
   if (getPlatformType(account) === 'onebot_v11') {
     const params: Record<string, unknown> = targetType === 'group'
@@ -92,7 +92,7 @@ export async function recallPlatformMessage(
   account: BotAccount,
   targetId: string,
   messageId: string,
-  targetType: 'user' | 'group' = 'user'
+  targetType: 'user' | 'group' | 'channel' | 'dms' = 'user'
 ): Promise<UnifiedRecallResult> {
   if (getPlatformType(account) === 'onebot_v11') {
     const normalizedMessageId: string | number = /^\d+$/.test(messageId) ? Number(messageId) : messageId;

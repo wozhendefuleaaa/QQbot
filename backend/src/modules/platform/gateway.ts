@@ -59,3 +59,41 @@ export {
   DEFAULT_INTENTS, 
   FACE_PATTERN 
 } from './gateway-utils.js';
+
+// 频道管理功能
+export {
+  getUserInfo,
+  getUserGuilds,
+  getGuildInfo,
+  getChannels,
+  getChannelInfo,
+  createChannel,
+  updateChannel,
+  deleteChannel,
+  CHANNEL_TYPE,
+  CHANNEL_PERMISSION
+} from './gateway-channel.js';
+
+// 频道相关类型导出
+export type {
+  QQUserInfo,
+  QQGuildInfo,
+  QQChannelInfo,
+  CreateChannelRequest,
+  UpdateChannelRequest
+} from './gateway-channel.js';
+
+// 错误处理功能
+export {
+  ERROR_TYPE,
+  createGatewayError,
+  retry,
+  handleApiResponse,
+  safeApiCall
+} from './gateway-error.js';
+
+// 错误相关类型导出
+export type {
+  GatewayError,
+  RetryOptions
+} from './gateway-error.js';
