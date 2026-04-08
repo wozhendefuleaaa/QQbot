@@ -12,9 +12,12 @@ export const ERROR_TYPE = {
   UNKNOWN: 'unknown',
 } as const;
 
+// 错误类型值
+export type ErrorType = typeof ERROR_TYPE[keyof typeof ERROR_TYPE];
+
 // 错误接口
 export interface GatewayError {
-  type: keyof typeof ERROR_TYPE;
+  type: ErrorType;
   message: string;
   code?: string;
   originalError?: any;
@@ -26,7 +29,7 @@ export interface RetryOptions {
   baseDelay: number;
   maxDelay: number;
   backoffFactor: number;
-  retryableErrorTypes: Array<keyof typeof ERROR_TYPE>;
+  retryableErrorTypes: ErrorType[];
 }
 
 // 默认重试选项
@@ -41,7 +44,7 @@ export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
 /**
  * 解析错误类型
  */
-export function parseErrorType(error: any): keyof typeof ERROR_TYPE {
+export function parseErrorType(error: any): ErrorType {
   if (!error) {
     return ERROR_TYPE.UNKNOWN;
   }
@@ -133,7 +136,7 @@ export async function retry<T>(
         throw createGatewayError(error);
       }
 
-      addPlatformLog('WARN', `尝试 ${attempt + 1} 失败: ${errorType} - ${error.message}`);
+      addPlatformLog('WARN', `尝试 ${attempt + 1} 失败: ${errorType} - ${(error as Error).message}`);
     }
   }
 
