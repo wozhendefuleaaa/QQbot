@@ -2,8 +2,13 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import fileUpload from 'express-fileupload';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Redis } from 'ioredis';
 import mysql from 'mysql2/promise';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import {
   addPlatformLog,
   addSystemLog,
@@ -157,6 +162,16 @@ registerOpenApiRoutes(app);
 registerQuickReplyRoutes(app);
 registerGroupRoutes(app);
 registerOneBotRoutes(app);
+
+// 生产环境：托管前端静态文件
+if (process.env.NODE_ENV === 'production') {
+  const webuiDist = process.env.WEBUI_DIST || path.resolve(process.cwd(), 'webui/dist');
+  app.use(express.static(webuiDist));
+  // SPA 回退：所有非 API 请求返回 index.html
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(webuiDist, 'index.html'));
+  });
+}
 
 // 404 处理
 app.use(notFoundHandler);

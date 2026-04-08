@@ -37,8 +37,8 @@ COPY package*.json ./
 COPY backend/package*.json ./backend/
 COPY webui/package*.json ./webui/
 
-# 安装生产依赖 + serve 用于前端静态文件服务
-RUN npm ci --omit=dev && npm install -g serve
+# 安装生产依赖（前端静态文件由后端 Express 托管，无需 serve）
+RUN npm ci --omit=dev
 
 # 从构建阶段复制构建产物
 COPY --from=builder /app/backend/dist ./backend/dist
@@ -55,10 +55,8 @@ RUN chmod +x /app/docker-start.sh
 # 创建日志目录
 RUN mkdir -p /app/logs
 
-# 暴露端口
-# 3000 - 后端 API
-# 5173 - 前端界面
-EXPOSE 3000 5173
+# 暴露端口（前端界面 + 后端 API 同端口）
+EXPOSE 3000
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

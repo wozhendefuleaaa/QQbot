@@ -48,8 +48,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     ports:
-      - "3000:3000"   # 后端 API
-      - "5173:5173"   # 前端界面
+      - "3000:3000"   # 前端界面 + 后端 API（同端口）
     volumes:
       # 插件目录持久化
       - ./backend/plugins:/app/backend/plugins

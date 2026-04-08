@@ -13,8 +13,9 @@ mkdir -p /app/logs
 # 生产模式
 echo "[模式] 生产环境"
 
-# 启动后端服务
+# 启动后端服务（生产环境同时托管前端静态文件）
 echo "[启动] 后端服务 (端口 3000)..."
+echo "[启动] 前端界面通过后端同端口提供"
 cd /app
 node backend/dist/index.js > /app/logs/backend.log 2>&1 &
 BACKEND_PID=$!
@@ -30,34 +31,15 @@ if ! kill -0 $BACKEND_PID 2>/dev/null; then
     exit 1
 fi
 
-# 启动前端静态文件服务
-echo "[启动] 前端服务 (端口 5173)..."
-cd /app/webui
-serve -s dist -l 5173 > /app/logs/webui.log 2>&1 &
-WEBUI_PID=$!
-echo "前端 PID: $WEBUI_PID"
-
-# 等待前端启动
-sleep 2
-
-# 检查前端是否正常运行
-if ! kill -0 $WEBUI_PID 2>/dev/null; then
-    echo "[错误] 前端服务启动失败，请查看日志: /app/logs/webui.log"
-    cat /app/logs/webui.log
-    exit 1
-fi
-
 echo ""
 echo "=========================================="
 echo "  🎉 服务启动成功！"
 echo "=========================================="
 echo ""
-echo "  前端界面: http://0.0.0.0:5173"
-echo "  后端 API: http://0.0.0.0:3000"
+echo "  访问地址: http://0.0.0.0:3000"
+echo "  (前端界面 + 后端 API 同端口)"
 echo ""
-echo "  日志位置:"
-echo "    - 后端: /app/logs/backend.log"
-echo "    - 前端: /app/logs/webui.log"
+echo "  日志位置: /app/logs/backend.log"
 echo ""
 echo "=========================================="
 
@@ -66,14 +48,13 @@ shutdown() {
     echo ""
     echo "正在停止服务..."
     kill $BACKEND_PID 2>/dev/null || true
-    kill $WEBUI_PID 2>/dev/null || true
     echo "服务已停止"
     exit 0
 }
 
 trap shutdown SIGTERM SIGINT SIGQUIT
 
-# 保持容器运行并监控进程
+# 保持容器运行并监控后端进程
 while true; do
     # 检查后端进程
     if ! kill -0 $BACKEND_PID 2>/dev/null; then
@@ -81,14 +62,6 @@ while true; do
         cd /app
         node backend/dist/index.js > /app/logs/backend.log 2>&1 &
         BACKEND_PID=$!
-    fi
-    
-    # 检查前端进程
-    if ! kill -0 $WEBUI_PID 2>/dev/null; then
-        echo "[警告] 前端服务已停止，正在重启..."
-        cd /app/webui
-        serve -s dist -l 5173 > /app/logs/webui.log 2>&1 &
-        WEBUI_PID=$!
     fi
     
     sleep 5
