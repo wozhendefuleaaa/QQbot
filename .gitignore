@@ -20,6 +20,10 @@ pnpm-debug.log*
 .vscode/
 .idea/
 
+# AI / IDE tool files
+.roo/
+.trae/
+
 # reference and planning files
 _ref/
 plans/
@@ -28,6 +32,11 @@ plans/
 *.test.ts
 *.spec.ts
 __tests__/
+
+# dev artifacts
+dogfood-output/
+screenshot.py
+backend/src/test-plugins.ts
 
 # data files
 backend/data/
