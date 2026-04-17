@@ -1,5 +1,21 @@
 # 更新日志 (Changelog)
 
+## [1.16.0] - 2026-04-17
+
+### 新增
+
+#### 🔮 蛙蛙插件新增文字版今日运势
+
+- 新增 [`backend/src/plugins/wawa-plugin/apps/今日运势.js`](backend/src/plugins/wawa-plugin/apps/今日运势.js)
+  - 支持 `#今日运势` / `#运势` 查询当日运势
+  - 支持 `#悔签` / `#重新抽取运势` 每日重抽一次
+  - 去除图片渲染与外部图源依赖，改为纯文字回复
+  - 使用本地 JSON 文件持久化每日记录与悔签状态
+
+### 文档
+
+- 更新 [`backend/src/plugins/wawa-plugin/README.md`](backend/src/plugins/wawa-plugin/README.md)，补充今日运势功能说明
+
 ## [1.15.0] - 2026-04-01
 
 ### 新增
