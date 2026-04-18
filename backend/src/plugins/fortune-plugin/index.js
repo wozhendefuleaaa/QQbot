@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const { sendMarkdownMessage } = require('../../modules/platform/gateway.js');
+const { accounts } = require('../../core/store.js');
 
 // 运势数据
 const fortuneData = {
@@ -187,6 +189,61 @@ async function handleRetryFortune(userId, targetId, targetType, ctx) {
 
 // 发送运势消息
 async function sendFortuneMessage(userId, targetId, targetType, fortune, ctx) {
+  try {
+    // 获取当前连接的账号ID
+    const accountId = ctx.getConnectedAccountId();
+    if (!accountId) {
+      throw new Error('平台未连接');
+    }
+    
+    // 找到对应的账号对象
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) {
+      throw new Error('未找到账号信息');
+    }
+    
+    // 构建 Markdown 消息
+    const markdown = {
+      custom_template_id: '',
+      params: [
+        {
+          key: 'title',
+          values: ['今日运势']
+        },
+        {
+          key: 'user',
+          values: [userId]
+        },
+        {
+          key: 'level',
+          values: [fortune.level]
+        },
+        {
+          key: 'stars',
+          values: [fortune.stars]
+        },
+        {
+          key: 'description',
+          values: [fortune.description]
+        },
+        {
+          key: 'explanation',
+          values: [fortune.explanation]
+        }
+      ]
+    };
+    
+    // 尝试发送 Markdown 消息
+    const result = await sendMarkdownMessage(account, targetId, markdown, undefined, targetType);
+    
+    if (result.success) {
+      return;
+    }
+  } catch (error) {
+    console.error('发送 Markdown 消息失败:', error);
+  }
+  
+  // 回退到文本消息
   const message = `@${userId}\n您的今日运势为：\n${fortune.level}\n${fortune.stars}\n\n<${fortune.description}>\n${fortune.explanation}\n\n图片源自网络|如有侵权|请反馈删除\n仅供娱乐|相信科学|请勿迷信`;
   await ctx.sendMessage(targetId, targetType, message);
 }
