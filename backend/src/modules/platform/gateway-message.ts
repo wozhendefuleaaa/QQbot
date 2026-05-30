@@ -92,6 +92,7 @@ export interface QQMessagePayload {
 const sendRateLimiter = {
   lastSendTime: 0,
   minInterval: 500, // 最小发送间隔 500ms
+  maxQueueSize: 500, // 最大队列长度
   queue: [] as { resolve: () => void; reject: (err: Error) => void }[],
   processing: false,
 
@@ -102,6 +103,10 @@ const sendRateLimiter = {
     if (elapsed >= this.minInterval && this.queue.length === 0) {
       this.lastSendTime = now;
       return;
+    }
+
+    if (this.queue.length >= this.maxQueueSize) {
+      throw new Error('消息发送队列已满，请稍后再试');
     }
 
     return new Promise((resolve, reject) => {
@@ -438,7 +443,6 @@ export async function sendImageMessage(
   try {
     const payload = {
       msg_type: 7, // 富媒体消息
-      msg_id: `img_${Date.now()}`,
       content: '',
       media: {
         file_info: fileInfo,
@@ -728,11 +732,10 @@ export async function sendKeyboardMessage(
   const useMsgId = isMsgIdValid(msgId);
 
   try {
-    // 使用inline_keyboard格式（QQ官方推荐格式）
+    // QQ 官方 API 使用 keyboard 字段（非 inline_keyboard）
     const payload: Record<string, unknown> = {
-      msg_type: QQ_MSG_TYPE.KEYBOARD,
-      msg_seq: Math.floor(Math.random() * 900000) + 100000,
-      inline_keyboard: keyboard,
+      msg_type: content ? QQ_MSG_TYPE.TEXT : QQ_MSG_TYPE.KEYBOARD,
+      keyboard,
     };
 
     if (content) {

@@ -11,6 +11,7 @@ import {
 } from '../../core/store.js';
 import { connectGateway, disconnectGateway } from '../platform/gateway.js';
 import { authMiddleware } from '../../core/middleware/auth.js';
+import { broadcastAccountUpdate } from '../sse/routes.js';
 
 export function registerAccountRoutes(app: Express) {
   // 获取账号列表 - 需要认证
@@ -45,6 +46,7 @@ export function registerAccountRoutes(app: Express) {
 
     accounts.unshift(item);
     await saveAccountsToDisk();
+    broadcastAccountUpdate(item.id);
     res.status(201).json(toPublicAccount(item));
   });
 
@@ -59,6 +61,7 @@ export function registerAccountRoutes(app: Express) {
     item.status = 'ONLINE';
     item.updatedAt = nowIso();
     await saveAccountsToDisk();
+    broadcastAccountUpdate(item.id);
 
     if (item.platformType === 'onebot_v11') {
       res.json(toPublicAccount(item));
@@ -91,6 +94,7 @@ export function registerAccountRoutes(app: Express) {
     item.status = 'DISABLED';
     item.updatedAt = nowIso();
     await saveAccountsToDisk();
+    broadcastAccountUpdate(item.id);
     res.json(toPublicAccount(item));
   });
 
@@ -109,6 +113,7 @@ export function registerAccountRoutes(app: Express) {
 
     const [removed] = accounts.splice(index, 1);
     await saveAccountsToDisk();
+    broadcastAccountUpdate(removed.id);
     res.json(toPublicAccount(removed));
   });
 }

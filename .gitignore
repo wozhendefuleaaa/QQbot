@@ -29,9 +29,9 @@ _ref/
 plans/
 
 # test files
+# （取消忽略__tests__目录，保留*.test.ts/*.spec.ts可选过滤，但本轮改进要提交测试文件）
 *.test.ts
 *.spec.ts
-__tests__/
 
 # dev artifacts
 dogfood-output/

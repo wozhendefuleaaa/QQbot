@@ -8,6 +8,7 @@ interface UseSSEOptions {
   onMessage?: (data: unknown) => void;
   onPlatformStatus?: (data: unknown) => void;
   onConnectionChange?: (connected: boolean) => void;
+  events?: Record<string, (data: unknown) => void>;
 }
 
 interface SSEState {
@@ -37,13 +38,8 @@ export function useSSE(options: UseSSEOptions) {
   const onMessageRef = useRef(options.onMessage);
   const onPlatformStatusRef = useRef(options.onPlatformStatus);
   const onConnectionChangeRef = useRef(options.onConnectionChange);
-
-  // 更新 ref
-  useEffect(() => {
-    onMessageRef.current = options.onMessage;
-    onPlatformStatusRef.current = options.onPlatformStatus;
-    onConnectionChangeRef.current = options.onConnectionChange;
-  });
+  const eventsRef = useRef(options.events || {});
+  const maxRetriesRef = useRef(maxRetries);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
@@ -66,6 +62,18 @@ export function useSSE(options: UseSSEOptions) {
     return delay + jitter;
   }, [initialRetryDelay, maxRetryDelay]);
 
+  // 使用 ref 存储 calculateDelay 避免闭包过时
+  const calculateDelayRef = useRef(calculateDelay);
+
+  useEffect(() => {
+    onMessageRef.current = options.onMessage;
+    onPlatformStatusRef.current = options.onPlatformStatus;
+    onConnectionChangeRef.current = options.onConnectionChange;
+    eventsRef.current = options.events || {};
+    maxRetriesRef.current = maxRetries;
+    calculateDelayRef.current = calculateDelay;
+  });
+
   const connect = useCallback(() => {
     // 防止重复连接
     if (isConnectingRef.current) {
@@ -79,11 +87,12 @@ export function useSSE(options: UseSSEOptions) {
     }
 
     // 检查是否超过最大重试次数
-    if (retryCountRef.current >= maxRetries) {
+    const currentMaxRetries = maxRetriesRef.current;
+    if (retryCountRef.current >= currentMaxRetries) {
       setState(prev => ({
         ...prev,
         reconnecting: false,
-        error: `连接失败，已达到最大重试次数 (${maxRetries})`
+        error: `连接失败，已达到最大重试次数 (${currentMaxRetries})`
       }));
       return;
     }
@@ -135,6 +144,18 @@ export function useSSE(options: UseSSEOptions) {
         }
       });
 
+      const currentEvents = eventsRef.current;
+      for (const [eventType, handler] of Object.entries(currentEvents)) {
+        eventSource.addEventListener(eventType, (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handler(data);
+          } catch (err) {
+            console.error(`[SSE] 解析 ${eventType} 事件失败:`, err);
+          }
+        });
+      }
+
       eventSource.onerror = (e) => {
         console.log('[SSE] 连接错误:', e);
         isConnectingRef.current = false;
@@ -154,9 +175,9 @@ export function useSSE(options: UseSSEOptions) {
         if (!isSubscribedRef.current) return;
 
         retryCountRef.current += 1;
-        const delay = calculateDelay(retryCountRef.current);
+        const delay = calculateDelayRef.current(retryCountRef.current);
 
-        console.log(`[SSE] 连接错误，${Math.round(delay / 1000)}秒后重试 (${retryCountRef.current}/${maxRetries})`);
+        console.log(`[SSE] 连接错误，${Math.round(delay / 1000)}秒后重试 (${retryCountRef.current}/${maxRetriesRef.current})`);
 
         reconnectTimeoutRef.current = setTimeout(() => {
           if (isSubscribedRef.current) {
@@ -175,7 +196,7 @@ export function useSSE(options: UseSSEOptions) {
         error: errorMessage
       }));
     }
-  }, [url, maxRetries, calculateDelay]);
+  }, [url]);
 
   // 手动重连
   const reconnect = useCallback(() => {

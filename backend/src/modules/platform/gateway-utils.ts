@@ -24,10 +24,18 @@ export const OP_HELLO = 10;
 export const OP_HEARTBEAT_ACK = 11;
 
 // 默认 Intents
-export const DEFAULT_INTENTS = (1 << 0) | (1 << 10) | (1 << 12) | (1 << 25) | (1 << 26) | (1 << 27);
+// 0:Guilds(默认) + 9:GuildMessages(私域) + 10:Reactions + 12:DirectMsg + 25:Group+C2C + 26:Interaction + 27:MsgAudit
+export const DEFAULT_INTENTS = (1 << 0) | (1 << 9) | (1 << 10) | (1 << 12) | (1 << 25) | (1 << 26) | (1 << 27);
 
 // 表情匹配模式
 export const FACE_PATTERN = /<faceType=\d+,faceId="[^"]+",ext="[^"]+">/g;
+
+export const RECONNECT_MAX_DELAY = 30_000;
+export const RECONNECT_BASE_DELAY = 5_000;
+
+export function calculateReconnectDelay(attempts: number): number {
+  return Math.min(RECONNECT_MAX_DELAY, RECONNECT_BASE_DELAY * attempts);
+}
 
 /**
  * 清理入站消息内容

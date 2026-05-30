@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { User, UserWithPassword, JwtPayload } from '../types.js';
 import { id, nowIso, readJsonFile, writeJsonFile } from './store.js';
 import { existsSync } from 'fs';
@@ -10,7 +11,7 @@ const USERS_FILE = join(DATA_DIR, 'users.json');
 const DEFAULT_JWT_SECRET = 'qqbot-jwt-secret-key-change-in-production';
 const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 // 默认管理员密码（首次登录需要修改）
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -36,6 +37,21 @@ export function getJwtSecretStatus(): { isDefault: boolean; warning?: string } {
     };
   }
   return { isDefault: false };
+}
+
+/**
+ * 确保 JWT 密钥安全性
+ * 开发环境使用默认密钥仅打印警告，生产环境必须设置 JWT_SECRET 否则拒绝启动
+ */
+export function ensureJwtSecretSafety(): void {
+  if (!isUsingDefaultJwtSecret()) return;
+
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[FATAL] 生产环境必须设置 JWT_SECRET 环境变量');
+    process.exit(1);
+  }
+
+  console.warn('[AUTH] 警告: 正在使用默认JWT密钥，生产环境请设置环境变量 JWT_SECRET');
 }
 
 /**
@@ -100,13 +116,7 @@ export async function initializeDefaultAdmin() {
     console.log('='.repeat(60) + '\n');
   }
   
-  // 检查JWT密钥安全性
-  const jwtStatus = getJwtSecretStatus();
-  if (jwtStatus.isDefault) {
-    console.warn('\n' + '!'.repeat(60));
-    console.warn(jwtStatus.warning);
-    console.warn('!'.repeat(60) + '\n');
-  }
+  // 重复的 JWT 安全检查已在 ensureJwtSecretSafety 中处理
 }
 
 /**
@@ -132,9 +142,10 @@ export function clearRequirePasswordChange(userId: string): void {
  */
 function generateRandomPassword(length: number): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
+  const bytes = crypto.randomBytes(length);
   let password = '';
   for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    password += chars.charAt(bytes[i] % chars.length);
   }
   return password;
 }

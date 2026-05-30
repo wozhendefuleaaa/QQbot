@@ -83,8 +83,11 @@ export class YunzaiPlugin {
     stateArr[key][type] = this.e;
     
     if (time) {
+      const contextEntry = stateArr[key][type];
+      trackContextTimer(contextEntry, time);
       stateArr[key][type][SymbolTimeout] = setTimeout(() => {
-        const resolve = stateArr[key][type][SymbolResolve];
+        const resolve = stateArr[key][type]?.[SymbolResolve];
+        timerExpiryMap.delete(stateArr[key][type]);
         delete stateArr[key][type];
         if (resolve) {
           resolve(false);
@@ -154,20 +157,35 @@ export function getStateArr(): Record<string, Record<string, any>> {
 }
 
 /**
+ * 过期跟踪：为每个 context 存储其过期时间戳
+ */
+const timerExpiryMap = new Map<any, number>();
+
+/**
  * 清理过期的上下文
+ * 使用独立存储的过期时间而非依赖 Node 内部 Timer 属性
  */
 export function clearExpiredContexts(): void {
   const now = Date.now();
   for (const key in stateArr) {
     for (const type in stateArr[key]) {
-      const timeout = stateArr[key][type][SymbolTimeout];
-      if (timeout && timeout._idleStart !== undefined) {
-        // 检查是否已经过期
-        const elapsed = now - timeout._idleStart;
-        if (elapsed >= timeout._idleTimeout) {
-          delete stateArr[key][type];
-        }
+      const entry = stateArr[key][type];
+      const expiry = timerExpiryMap.get(entry);
+      if (expiry !== undefined && now >= expiry) {
+        clearTimeout(entry[SymbolTimeout]);
+        timerExpiryMap.delete(entry);
+        delete stateArr[key][type];
       }
     }
+  }
+}
+
+/**
+ * 记录 context 超时时间（在 setContext 中调用）
+ * @internal 供 setContext 内部使用
+ */
+export function trackContextTimer(contextEntry: any, timeoutMs: number): void {
+  if (timeoutMs > 0) {
+    timerExpiryMap.set(contextEntry, Date.now() + timeoutMs * 1000);
   }
 }

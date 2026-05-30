@@ -1,5 +1,6 @@
-import { existsSync, promises as fs } from 'fs';
+import { existsSync, promises as fs, writeFileSync, mkdirSync, renameSync, unlinkSync } from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import {
   AppConfig,
   BotAccount,
@@ -15,6 +16,7 @@ import {
   StatisticsSnapshot,
   SystemLog
 } from '../types.js';
+import { fetchAccessToken, QQ_API_BASE } from './qqbot/auth.js';
 
 export const accounts: BotAccount[] = [];
 export const conversations: Conversation[] = [];
@@ -25,9 +27,41 @@ export const plugins: PluginInfo[] = [];
 export const openApiTokens: OpenApiToken[] = [];
 export const quickReplies: QuickReply[] = [];
 
+const conversationById = new Map<string, Conversation>();
+const messagesByConversationId = new Map<string, Message[]>();
+let statsInboundCount = 0;
+let statsOutboundCount = 0;
+
+function rebuildIndexes() {
+  conversationById.clear();
+  messagesByConversationId.clear();
+  statsInboundCount = 0;
+  statsOutboundCount = 0;
+  for (const conv of conversations) {
+    conversationById.set(conv.id, conv);
+  }
+  for (const msg of messages) {
+    if (!messagesByConversationId.has(msg.conversationId)) {
+      messagesByConversationId.set(msg.conversationId, []);
+    }
+    messagesByConversationId.get(msg.conversationId)!.push(msg);
+    if (msg.direction === 'in') statsInboundCount++;
+    else statsOutboundCount++;
+  }
+}
+
+export function findConversationById(id: string): Conversation | undefined {
+  return conversationById.get(id) ?? conversations.find((c) => c.id === id);
+}
+
+export function findMessagesByConversationId(convId: string): Message[] {
+  return messagesByConversationId.get(convId) ?? messages.filter((m) => m.conversationId === convId);
+}
+
 export const nowIso = () => new Date().toISOString();
-export const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
-export const maskSecret = (input: string) => `${input.slice(0, 2)}***${input.slice(-2)}`;
+export const id = (prefix: string) => `${prefix}_${crypto.randomUUID().slice(0, 12)}`;
+export const maskSecret = (input: string) => input.length > 4 ? `${input.slice(0, 2)}***${input.slice(-2)}` : '***';
+export const hashToken = (raw: string): string => crypto.createHash('sha256').update(raw).digest('hex');
 
 export const qqApiBase = process.env.QQ_API_BASE || 'https://bots.qq.com';
 export const qqGatewayUrlFromEnv = process.env.QQ_GATEWAY_URL || '';
@@ -39,8 +73,6 @@ export const gatewayIntents = Number(process.env.QQ_GATEWAY_INTENTS || 0);
 if (!Number.isFinite(gatewayIntents) || gatewayIntents < 0) {
   throw new Error('QQ_GATEWAY_INTENTS 配置无效，必须是非负数字');
 }
-
-const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 
 const configuredDataDir = process.env.BACKEND_DATA_DIR?.trim();
 const defaultDataDir = existsSync(path.resolve(process.cwd(), 'backend'))
@@ -102,7 +134,18 @@ export async function readJsonFile<T>(filePath: string): Promise<T | null> {
 
 export async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
   await ensureDataDir();
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+  const tmpPath = filePath + '.tmp';
+  await fs.writeFile(tmpPath, JSON.stringify(data, null, 2), 'utf8');
+  await fs.rename(tmpPath, filePath);
+}
+
+export function writeJsonFileSync<T>(filePath: string, data: T): void {
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+  }
+  const tmpPath = filePath + '.tmp';
+  writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf8');
+  renameSync(tmpPath, filePath);
 }
 
 export async function loadAccountsFromDisk() {
@@ -203,6 +246,14 @@ export async function loadOpenApiTokensFromDisk() {
   if (Array.isArray(parsed)) {
     openApiTokens.splice(0, openApiTokens.length, ...parsed.filter((x) => x?.id && x?.token));
   }
+  const migrated = openApiTokens.filter((item) => !/^[a-f0-9]{64}$/.test(item.token));
+  if (migrated.length > 0) {
+    for (const item of migrated) {
+      item.token = hashToken(item.token);
+    }
+    await saveOpenApiTokensToDisk();
+    addPlatformLog('INFO', `已迁移 ${migrated.length} 个 OpenAPI Token 为哈希存储`);
+  }
 }
 
 export async function saveOpenApiTokensToDisk() {
@@ -245,6 +296,7 @@ export async function loadChatDataFromDisk() {
     }
 
     addPlatformLog('INFO', `已加载聊天存储：会话 ${conversations.length} 条，消息 ${messages.length} 条`);
+    rebuildIndexes();
   } catch (error) {
     const e = error as Error;
     addPlatformLog('WARN', `加载聊天存储失败：${e.message}`);
@@ -255,6 +307,38 @@ export async function saveChatDataToDisk() {
   await ensureDataDir();
   await fs.writeFile(conversationsFilePath, JSON.stringify(conversations, null, 2), 'utf8');
   await fs.writeFile(messagesFilePath, JSON.stringify(messages, null, 2), 'utf8');
+}
+
+export function syncSaveCriticalData(): void {
+  try {
+    writeJsonFileSync(conversationsFilePath, conversations);
+    writeJsonFileSync(messagesFilePath, messages);
+    writeJsonFileSync(accountsFilePath, accounts);
+    writeJsonFileSync(appConfigFilePath, appConfig);
+    writeJsonFileSync(openApiTokensFilePath, openApiTokens);
+    writeJsonFileSync(pluginsFilePath, plugins);
+  } catch {
+    // 崩溃保存失败时静默忽略
+  }
+}
+
+export function cleanupTmpFiles(): void {
+  try {
+    const allPaths = [
+      conversationsFilePath, messagesFilePath, accountsFilePath,
+      appConfigFilePath, openApiTokensFilePath, pluginsFilePath,
+      quickRepliesFilePath,
+    ];
+    for (const p of allPaths) {
+      const tmpPath = p + '.tmp';
+      if (existsSync(tmpPath)) {
+        unlinkSync(tmpPath);
+        console.log(`[store] 清理残留临时文件: ${tmpPath}`);
+      }
+    }
+  } catch {
+    // 清理失败时静默忽略
+  }
 }
 
 export async function flushSaveChatDataToDisk() {
@@ -315,48 +399,50 @@ export function setPlatformError(error: unknown) {
 }
 
 export async function fetchAppAccessToken(account: BotAccount, forceRefresh = false) {
-  const now = Date.now();
-  const cached = tokenCache.get(account.id);
-  if (!forceRefresh && cached && cached.expiresAt - now > 60_000) {
-    return cached.token;
+  try {
+    const token = await fetchAccessToken(
+      { appId: account.appId, appSecret: account.appSecret },
+      forceRefresh
+    );
+    platformStatus.tokenExpiresAt = new Date(Date.now() + 7200 * 1000).toISOString();
+    return token;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    addPlatformLog('ERROR', `获取 AccessToken 失败（账号：${account.name}）: ${msg}`);
+    throw error;
   }
+}
 
-  if (!account.appId || !account.appSecret) {
-    throw new Error('账号缺少 AppID 或 AppSecret');
+function trimMessagesIfNeeded(): void {
+  if (messages.length <= 10000) return;
+  const removed = messages.splice(0, messages.length - 10000);
+  for (const rm of removed) {
+    if (rm.direction === 'in') statsInboundCount--;
+    else statsOutboundCount--;
   }
+  rebuildIndexes();
+}
 
-  const url = `${qqApiBase}/app/getAppAccessToken`;
-  addPlatformLog('INFO', `获取 QQ AccessToken: ${url}（账号：${account.name}）`);
+export { trimMessagesIfNeeded };
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ appId: account.appId, clientSecret: account.appSecret })
-  });
-
-  if (!res.ok) {
-    throw new Error(`获取 AccessToken 失败: HTTP ${res.status}`);
-  }
-
-  const data = (await res.json()) as {
-    access_token?: string;
-    accessToken?: string;
-    expires_in?: number;
-    expiresIn?: number;
+export function recordOutboundMessage(accountId: string, conversationId: string, text: string): Message {
+  const msg: Message = {
+    id: id('msg'),
+    accountId,
+    conversationId,
+    direction: 'out',
+    text,
+    createdAt: nowIso()
   };
-
-  const token = data.access_token || data.accessToken;
-  const expiresIn = Number(data.expires_in || data.expiresIn || 7200);
-
-  if (!token) {
-    throw new Error('AccessToken 响应缺少 access_token 字段');
+  messages.push(msg);
+  statsOutboundCount++;
+  if (!messagesByConversationId.has(conversationId)) {
+    messagesByConversationId.set(conversationId, []);
   }
-
-  const expiresAt = Date.now() + expiresIn * 1000;
-  tokenCache.set(account.id, { token, expiresAt });
-  platformStatus.tokenExpiresAt = new Date(expiresAt).toISOString();
-  addPlatformLog('INFO', `AccessToken 获取成功（账号：${account.name}）`);
-  return token;
+  messagesByConversationId.get(conversationId)!.push(msg);
+  trimMessagesIfNeeded();
+  scheduleSaveChatDataToDisk();
+  return msg;
 }
 
 export function ensureConversationForInboundByAccount(
@@ -381,6 +467,7 @@ export function ensureConversationForInboundByAccount(
       updatedAt: nowIso()
     };
     conversations.unshift(conv);
+    conversationById.set(conv.id, conv);
   }
 
   if (options?.peerName) {
@@ -397,9 +484,12 @@ export function ensureConversationForInboundByAccount(
   };
 
   messages.push(msg);
-  if (messages.length > 10000) {
-    messages.splice(0, messages.length - 10000);
+  statsInboundCount++;
+  if (!messagesByConversationId.has(msg.conversationId)) {
+    messagesByConversationId.set(msg.conversationId, []);
   }
+  messagesByConversationId.get(msg.conversationId)!.push(msg);
+  trimMessagesIfNeeded();
   conv.lastMessage = content;
   conv.lastInboundMsgId = options?.inboundMsgId || conv.lastInboundMsgId || null;
   conv.updatedAt = nowIso();
@@ -426,8 +516,8 @@ export function ensureConversationForInbound(
 
 export function buildStatisticsSnapshot(): StatisticsSnapshot {
   const today = new Date().toISOString().slice(0, 10);
-  const inboundMessages = messages.filter((m) => m.direction === 'in').length;
-  const outboundMessages = messages.filter((m) => m.direction === 'out').length;
+  const inboundMessages = statsInboundCount;
+  const outboundMessages = statsOutboundCount;
   
   // 计算会话类型分布
   const privateConvs = conversations.filter((c) => c.peerType === 'user').length;
@@ -444,7 +534,7 @@ export function buildStatisticsSnapshot(): StatisticsSnapshot {
   
   for (const msg of messages) {
     if (msg.direction === 'in') {
-      const conv = conversations.find((c) => c.id === msg.conversationId);
+      const conv = findConversationById(msg.conversationId);
       if (conv) {
         if (conv.peerType === 'group') {
           const count = groupMessageCounts.get(conv.id) || 0;
@@ -462,7 +552,7 @@ export function buildStatisticsSnapshot(): StatisticsSnapshot {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([id, messageCount]) => {
-      const conv = conversations.find((c) => c.id === id);
+      const conv = findConversationById(id);
       return { id, name: conv?.peerName || id, messageCount };
     });
   
@@ -471,7 +561,7 @@ export function buildStatisticsSnapshot(): StatisticsSnapshot {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([id, messageCount]) => {
-      const conv = conversations.find((c) => c.id === id);
+      const conv = findConversationById(id);
       return { id, name: conv?.peerName || id, messageCount };
     });
 

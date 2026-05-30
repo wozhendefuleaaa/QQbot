@@ -2,6 +2,17 @@ import { BotAccount } from '../../types.js';
 import { addPlatformLog } from '../../core/store.js';
 import { callOneBotAction } from '../onebot/server.js';
 import { trySendToQQ, recallMessage, uploadImage, sendImageMessage } from './gateway.js';
+import {
+  sendMarkdownMessage as sdkSendMarkdown,
+  sendMarkdownWithKeyboard as sdkSendMarkdownWithKeyboard,
+  sendArkMessage as sdkSendArk,
+  sendEmbedMessage as sdkSendEmbed,
+  sendKeyboardMessage as sdkSendKeyboard,
+  sendMediaMessage as sdkSendMedia,
+  uploadMedia as sdkUploadMedia,
+} from '../../core/qqbot/index.js';
+import type { KeyboardPayload } from '../../core/qqbot/types.js';
+import { MessageBuilder } from '../../core/qqbot/segment.js';
 
 export type UnifiedSendResult = {
   mode: 'qq_official' | 'onebot_v11';
@@ -159,4 +170,237 @@ export async function sendPlatformImageMessage(
     success: result.success,
     platformMessageId: null,
   };
+}
+
+// ==================== 富媒体消息 (使用新版 SDK) ====================
+
+/**
+ * 发送 Markdown 消息 (QQ Official)
+ */
+export async function sendPlatformMarkdown(
+  account: BotAccount,
+  targetId: string,
+  markdown: { custom_template_id?: string; params?: Array<{ key: string; values: string[] }> },
+  msgId?: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  if (account.platformType === 'onebot_v11') {
+    addPlatformLog('WARN', 'OneBot 不支持 Markdown 消息');
+    return { success: false };
+  }
+
+  try {
+    await sdkSendMarkdown(
+      { appId: account.appId, appSecret: account.appSecret },
+      targetId,
+      markdown,
+      msgId,
+      targetType
+    );
+    addPlatformLog('INFO', `Markdown 消息发送成功: target=${targetId}`);
+    return { success: true };
+  } catch (error: any) {
+    addPlatformLog('ERROR', `Markdown 消息发送失败: ${error?.message}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 发送 Ark 卡片消息 (QQ Official)
+ */
+export async function sendPlatformArk(
+  account: BotAccount,
+  targetId: string,
+  ark: { template_id: number; kv: Array<{ key: string; value?: string }> },
+  msgId?: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  if (account.platformType === 'onebot_v11') {
+    addPlatformLog('WARN', 'OneBot 不支持 Ark 消息');
+    return { success: false };
+  }
+
+  try {
+    await sdkSendArk(
+      { appId: account.appId, appSecret: account.appSecret },
+      targetId,
+      ark,
+      msgId,
+      targetType
+    );
+    addPlatformLog('INFO', `Ark 消息发送成功: target=${targetId}`);
+    return { success: true };
+  } catch (error: any) {
+    addPlatformLog('ERROR', `Ark 消息发送失败: ${error?.message}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 使用 MessageBuilder 发送消息 (QQ Official)
+ * 
+ * 支持链式API构建复杂消息：文本 + @ + 表情 + 回复等
+ */
+export async function sendPlatformMessage(
+  account: BotAccount,
+  targetId: string,
+  builder: MessageBuilder,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean; messageId?: string | null }> {
+  if (account.platformType === 'onebot_v11') {
+    const text = builder.buildText();
+    const action = targetType === 'group' ? 'send_group_msg' : 'send_private_msg';
+    const params: Record<string, unknown> =
+      targetType === 'group'
+        ? { group_id: targetId, message: text }
+        : { user_id: targetId, message: text };
+
+    const response = await callOneBotAction(account.id, action, params);
+    if (response.status !== 'ok') {
+      return { success: false };
+    }
+    return { success: true, messageId: extractOneBotMessageId(response.data) };
+  }
+
+  try {
+    const request = builder.build();
+    let result: { id: string; timestamp: number };
+
+    if (request.msg_type === 2) {
+      result = await sdkSendMarkdown(
+        { appId: account.appId, appSecret: account.appSecret },
+        targetId,
+        request.markdown!,
+        request.msg_id,
+        targetType
+      );
+    } else if (request.msg_type === 7) {
+      result = await sdkSendMedia(
+        { appId: account.appId, appSecret: account.appSecret },
+        targetId,
+        request.media!.file_info,
+        targetType
+      );
+    } else {
+      // 处理文本消息（可能带 keyboard）
+      if (request.keyboard) {
+        result = await sdkSendKeyboard(
+          { appId: account.appId, appSecret: account.appSecret },
+          targetId,
+          request.keyboard,
+          request.content || '',
+          request.msg_id,
+          targetType
+        );
+      } else {
+        result = await trySendToQQ(account, targetId, request.content || '', request.msg_id, targetType) as any;
+      }
+    }
+
+    addPlatformLog('INFO', `消息发送成功: target=${targetId} msgId=${result?.id || ''}`);
+    return { success: true, messageId: result?.id || null };
+  } catch (error: any) {
+    addPlatformLog('ERROR', `消息发送失败: ${error?.message}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 使用新 SDK 上传媒体文件
+ */
+export async function uploadPlatformMedia(
+  account: BotAccount,
+  targetId: string,
+  fileBuffer: Buffer,
+  fileName: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean; fileInfo?: string }> {
+  if (account.platformType === 'onebot_v11') {
+    const fileBase64 = fileBuffer.toString('base64');
+    return { success: true, fileInfo: `base64://${fileBase64}` };
+  }
+
+  try {
+    const fileInfo = await sdkUploadMedia(
+      { appId: account.appId, appSecret: account.appSecret },
+      targetId,
+      fileBuffer,
+      fileName,
+      targetType
+    );
+    return { success: true, fileInfo };
+  } catch (error: any) {
+    addPlatformLog('ERROR', `媒体上传失败: ${error?.message}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 发送键盘按钮消息 (QQ Official)
+ * 
+ * @param content 可选文本内容，键盘按钮会附带文本一起发送
+ */
+export async function sendPlatformKeyboard(
+  account: BotAccount,
+  targetId: string,
+  keyboard: KeyboardPayload,
+  content?: string,
+  msgId?: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  if (account.platformType === 'onebot_v11') {
+    addPlatformLog('WARN', 'OneBot 不支持键盘消息');
+    return { success: false };
+  }
+
+  try {
+    await sdkSendKeyboard(
+      { appId: account.appId, appSecret: account.appSecret },
+      targetId,
+      keyboard,
+      content,
+      msgId,
+      targetType
+    );
+    addPlatformLog('INFO', `键盘消息发送成功: target=${targetId}`);
+    return { success: true };
+  } catch (error: any) {
+    addPlatformLog('ERROR', `键盘消息发送失败: ${error?.message}`);
+    return { success: false };
+  }
+}
+
+/**
+ * 发送 Markdown + 键盘组合消息 (QQ Official)
+ * 
+ * 官方支持 Markdown 消息附加按钮组件
+ */
+export async function sendPlatformMarkdownWithKeyboard(
+  account: BotAccount,
+  targetId: string,
+  markdown: { custom_template_id?: string; params?: Array<{ key: string; values: string[] }> },
+  keyboard: KeyboardPayload,
+  msgId?: string,
+  targetType: 'user' | 'group' = 'user'
+): Promise<{ success: boolean }> {
+  if (account.platformType === 'onebot_v11') {
+    addPlatformLog('WARN', 'OneBot 不支持 Markdown/键盘消息');
+    return { success: false };
+  }
+
+  try {
+    await sdkSendMarkdownWithKeyboard(
+      { appId: account.appId, appSecret: account.appSecret },
+      targetId,
+      markdown,
+      keyboard,
+      msgId,
+      targetType
+    );
+    addPlatformLog('INFO', `Markdown+键盘消息发送成功: target=${targetId}`);
+    return { success: true };
+  } catch (error: any) {
+    addPlatformLog('ERROR', `Markdown+键盘消息发送失败: ${error?.message}`);
+    return { success: false };
+  }
 }

@@ -106,129 +106,137 @@ export function initYunzaiGlobals(bot?: YunzaiBot): void {
   ;(globalThis as any).isAdmin = isAdmin
   // 注入 plugin 基类，供云崽插件继承
   ;(globalThis as any).plugin = YunzaiPlugin
-  // 注入 redis 模拟对象 (简单内存存储实现)
+  // 注入 redis 模拟对象 (简单内存存储实现) — 必须用 function 而非箭头函数
+  const redisStore = new Map<string, { value: string, expire?: number }>();
   ;(globalThis as any).redis = {
-    _store: new Map<string, { value: string, expire?: number }>(),
-    async get(key: string): Promise<string | null> {
-      const item = this._store.get(key)
-      if (!item) return null
-      if (item.expire && Date.now() > item.expire) {
-        this._store.delete(key)
-        return null
+    _store: redisStore,
+    get: async function(key: string): Promise<string | null> {
+      const item = redisStore.get(key);
+      if (!item) return null;
+      if (item.expire && Date.now() > item.expire) { redisStore.delete(key); return null; }
+      return item.value;
+    },
+    set: async function(key: string, value: string, ...args: any[]): Promise<string> {
+      const item: { value: string, expire?: number } = { value };
+      if (args.length >= 2 && String(args[0]).toUpperCase() === 'EX') {
+        item.expire = Date.now() + (parseInt(String(args[1])) * 1000);
+      } else if (args.length >= 2 && String(args[0]).toUpperCase() === 'PX') {
+        item.expire = Date.now() + parseInt(String(args[1]));
       }
-      return item.value
+      redisStore.set(key, item);
+      return 'OK';
     },
-    async set(key: string, value: string, ...args: any[]): Promise<string> {
-      const item: { value: string, expire?: number } = { value }
-      // 处理 EX/PX 参数 (redis 格式: SET key value EX seconds)
-      if (args.length >= 2 && args[0]?.toUpperCase() === 'EX') {
-        item.expire = Date.now() + (parseInt(args[1]) * 1000)
-      } else if (args.length >= 2 && args[0]?.toUpperCase() === 'PX') {
-        item.expire = Date.now() + parseInt(args[1])
-      }
-      this._store.set(key, item)
-      return 'OK'
+    del: async function(key: string): Promise<number> {
+      return redisStore.delete(key) ? 1 : 0;
     },
-    async del(key: string): Promise<number> {
-      return this._store.delete(key) ? 1 : 0
+    exists: async function(key: string): Promise<number> {
+      const item = redisStore.get(key);
+      if (!item) return 0;
+      if (item.expire && Date.now() > item.expire) { redisStore.delete(key); return 0; }
+      return 1;
     },
-    async exists(key: string): Promise<number> {
-      const item = this._store.get(key)
-      if (!item) return 0
-      if (item.expire && Date.now() > item.expire) {
-        this._store.delete(key)
-        return 0
-      }
-      return 1
+    expire: async function(key: string, seconds: number): Promise<number> {
+      const item = redisStore.get(key);
+      if (!item) return 0;
+      item.expire = Date.now() + (seconds * 1000);
+      return 1;
     },
-    async expire(key: string, seconds: number): Promise<number> {
-      const item = this._store.get(key)
-      if (!item) return 0
-      item.expire = Date.now() + (seconds * 1000)
-      return 1
+    ttl: async function(key: string): Promise<number> {
+      const item = redisStore.get(key);
+      if (!item) return -2;
+      if (!item.expire) return -1;
+      const val = Math.floor((item.expire - Date.now()) / 1000);
+      return val > 0 ? val : -2;
     },
-    async ttl(key: string): Promise<number> {
-      const item = this._store.get(key)
-      if (!item) return -2
-      if (!item.expire) return -1
-      const ttl = Math.floor((item.expire - Date.now()) / 1000)
-      return ttl > 0 ? ttl : -2
-    },
-    async keys(pattern: string): Promise<string[]> {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      const result: string[] = []
-      for (const key of this._store.keys()) {
-        if (regex.test(key)) {
-          const item = this._store.get(key)
-          if (item && (!item.expire || Date.now() <= item.expire)) {
-            result.push(key)
-          }
+    keys: async function(pattern: string): Promise<string[]> {
+      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+      const result: string[] = [];
+      for (const [key, item] of redisStore.entries()) {
+        if (regex.test(key) && (!item.expire || Date.now() <= item.expire)) {
+          result.push(key);
         }
       }
-      return result
+      return result;
     },
-    async incr(key: string): Promise<number> {
-      const item = this._store.get(key)
-      const newVal = item ? parseInt(item.value || '0') + 1 : 1
-      this._store.set(key, { value: String(newVal), expire: item?.expire })
-      return newVal
+    incr: async function(key: string): Promise<number> {
+      const item = redisStore.get(key);
+      const newVal = item ? parseInt(item.value || '0') + 1 : 1;
+      redisStore.set(key, { value: String(newVal), expire: item?.expire });
+      return newVal;
     },
-    async decr(key: string): Promise<number> {
-      const item = this._store.get(key)
-      const newVal = item ? parseInt(item.value || '0') - 1 : -1
-      this._store.set(key, { value: String(newVal), expire: item?.expire })
-      return newVal
+    decr: async function(key: string): Promise<number> {
+      const item = redisStore.get(key);
+      const newVal = item ? parseInt(item.value || '0') - 1 : -1;
+      redisStore.set(key, { value: String(newVal), expire: item?.expire });
+      return newVal;
     },
-    async hset(key: string, field: string, value: string): Promise<number> {
-      const hashKey = `${key}:${field}`
-      const exists = this._store.has(hashKey)
-      this._store.set(hashKey, { value })
-      return exists ? 0 : 1
+    hset: async function(key: string, field: string, value: string): Promise<number> {
+      const hashKey = `${key}:${field}`;
+      const exists = redisStore.has(hashKey);
+      redisStore.set(hashKey, { value });
+      return exists ? 0 : 1;
     },
-    async hget(key: string, field: string): Promise<string | null> {
-      return this.get(`${key}:${field}`)
+    hget: async function(key: string, field: string): Promise<string | null> {
+      const item = redisStore.get(`${key}:${field}`);
+      if (!item) return null;
+      if (item.expire && Date.now() > item.expire) { redisStore.delete(`${key}:${field}`); return null; }
+      return item.value;
     },
-    async hgetall(key: string): Promise<Record<string, string>> {
-      const result: Record<string, string> = {}
-      for (const [k, item] of this._store.entries()) {
+    hgetall: async function(key: string): Promise<Record<string, string>> {
+      const result: Record<string, string> = {};
+      for (const [k, item] of redisStore.entries()) {
         if (k.startsWith(key + ':') && (!item.expire || Date.now() <= item.expire)) {
-          const field = k.substring(key.length + 1)
-          result[field] = item.value
+          result[k.substring(key.length + 1)] = item.value;
         }
       }
-      return result
+      return result;
     },
-    async hdel(key: string, field: string): Promise<number> {
-      return this.del(`${key}:${field}`)
+    hdel: async function(key: string, field: string): Promise<number> {
+      return redisStore.delete(`${key}:${field}`) ? 1 : 0;
     },
-    async lpush(key: string, ...values: string[]): Promise<number> {
-      // 简化实现
-      const item = this._store.get(key)
-      const list = item ? JSON.parse(item.value) : []
-      list.unshift(...values)
-      this._store.set(key, { value: JSON.stringify(list), expire: item?.expire })
-      return list.length
+    lpush: async function(key: string, ...values: string[]): Promise<number> {
+      const item = redisStore.get(key);
+      const list: string[] = item ? JSON.parse(item.value) : [];
+      list.unshift(...values);
+      redisStore.set(key, { value: JSON.stringify(list), expire: item?.expire });
+      return list.length;
     },
-    async rpush(key: string, ...values: string[]): Promise<number> {
-      const item = this._store.get(key)
-      const list = item ? JSON.parse(item.value) : []
-      list.push(...values)
-      this._store.set(key, { value: JSON.stringify(list), expire: item?.expire })
-      return list.length
+    rpush: async function(key: string, ...values: string[]): Promise<number> {
+      const item = redisStore.get(key);
+      const list: string[] = item ? JSON.parse(item.value) : [];
+      list.push(...values);
+      redisStore.set(key, { value: JSON.stringify(list), expire: item?.expire });
+      return list.length;
     },
-    async lrange(key: string, start: number, stop: number): Promise<string[]> {
-      const item = this._store.get(key)
-      if (!item) return []
-      const list = JSON.parse(item.value)
-      if (stop === -1) return list.slice(start)
-      return list.slice(start, stop + 1)
+    lrange: async function(key: string, start: number, stop: number): Promise<string[]> {
+      const item = redisStore.get(key);
+      if (!item) return [];
+      const list: string[] = JSON.parse(item.value);
+      if (stop === -1) return list.slice(start);
+      return list.slice(start, stop + 1);
     },
-    async llen(key: string): Promise<number> {
-      const item = this._store.get(key)
-      if (!item) return 0
-      return JSON.parse(item.value).length
+    llen: async function(key: string): Promise<number> {
+      const item = redisStore.get(key);
+      if (!item) return 0;
+      return JSON.parse(item.value).length;
     }
-  }
+  };
+  // 注入 Data 对象 (兼容云崽插件的数据持久化)
+  ;(globalThis as any).Data = {
+    _store: redisStore,
+    readJSON: async function(file: string) {
+      try {
+        const item = redisStore.get(`data:${file}`);
+        return item ? JSON.parse(item.value) : {};
+      } catch { return {}; }
+    },
+    writeJSON: async function(file: string, data: any) {
+      redisStore.set(`data:${file}`, { value: JSON.stringify(data ?? {}) });
+    },
+    createDir: async function(_dir: string) { /* noop */ },
+    async read(_file: string) { return ''; },
+    async write(_file: string, _data: string) { /* noop */ }
+  };
   // 注入 logger
   ;(globalThis as any).logger = {
     info: (...args: any[]) => console.log('[Yunzai]', ...args),
@@ -271,34 +279,35 @@ export function getGlobalBot(): YunzaiBot | null {
  */
 export function isYunzaiPlugin(pluginModule: any): boolean {
   // 检查是否是 YunzaiPlugin 类的实例或子类
-  if (pluginModule instanceof YunzaiPlugin) {
-    return true
-  }
+  if (pluginModule instanceof YunzaiPlugin) return true;
 
-  // 检查是否是 YunzaiPlugin 的子类
-  if (typeof pluginModule === 'function' && pluginModule.prototype instanceof YunzaiPlugin) {
-    return true
-  }
-
-  // 检查是否是导出的类
-  if (pluginModule.default && (
-    pluginModule.default.prototype instanceof YunzaiPlugin ||
-    typeof pluginModule.default === 'function' && pluginModule.default.prototype instanceof YunzaiPlugin
-  )) {
-    return true
+  // 检查 prototype 继承链
+  if (typeof pluginModule === 'function') {
+    try {
+      if (pluginModule.prototype instanceof YunzaiPlugin) return true;
+    } catch {}
+    // 也检查 rule 特征（非继承类自有定义）
+    const proto = pluginModule.prototype;
+    if (proto?.rule && Array.isArray(proto.rule)) return true;
   }
 
   // 检查是否有 Yunzai 插件的特征属性（rule 数组是云崽插件的核心特征）
-  if (pluginModule.rule && Array.isArray(pluginModule.rule)) {
-    return true
-  }
+  if (pluginModule.rule && Array.isArray(pluginModule.rule)) return true;
   
-  // 检查导出对象是否也有这些特征
-  if (pluginModule.default && pluginModule.default.rule && Array.isArray(pluginModule.default.rule)) {
-    return true
+  // 检查导出对象默认也有 rule
+  if (pluginModule.default) {
+    if (pluginModule.default instanceof YunzaiPlugin) return true;
+    if (pluginModule.default.rule && Array.isArray(pluginModule.default.rule)) return true;
   }
 
-  return false
+  // 检查 apps 导出 (package 入口格式)
+  if (pluginModule.apps && typeof pluginModule.apps === 'object') {
+    for (const v of Object.values(pluginModule.apps)) {
+      if (v && typeof v === 'object' && 'rule' in v && Array.isArray((v as any).rule)) return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -397,7 +406,7 @@ export function convertYunzaiPlugin(
         if (typeof handler === 'function') {
           commands.push({
             name: rule.fnc || 'handler',
-            description: rule.log !== false ? `匹配: ${rule.reg.toString()}` : '',
+            description: rule.describe || rule.log !== false ? `匹配: ${rule.reg?.toString() || ''}` : '',
             pattern: rule.reg,
             handler: async (event: YunzaiEvent) => {
               plugin.e = event

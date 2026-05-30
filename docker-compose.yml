@@ -3,10 +3,10 @@ services:
     image: mysql:8.4
     container_name: qqbot-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: qqbot
-      MYSQL_USER: qqbot
-      MYSQL_PASSWORD: qqbot
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-qqbot}
+      MYSQL_USER: ${MYSQL_USER:-qqbot}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-qqbot}
     ports:
       - "3307:3306"
     volumes:
@@ -43,7 +43,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=qqbot
-      - DB_PASSWORD=qqbot
+      - DB_PASSWORD=${MYSQL_PASSWORD:-qqbot}
       - DB_NAME=qqbot
       - REDIS_HOST=redis
       - REDIS_PORT=6379

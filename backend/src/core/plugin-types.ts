@@ -1,15 +1,62 @@
 import { Message } from '../types.js';
+import type { MarkdownPayload, ArkPayload, EmbedPayload, KeyboardPayload } from './qqbot/types.js';
 
 /**
  * 插件上下文 - 提供给插件的API接口
  */
 export type PluginContext = {
-  /** 发送消息到指定目标 */
+  /** 发送文本消息到指定目标 */
   sendMessage: (targetId: string, targetType: 'user' | 'group', text: string) => Promise<void>;
+
+  /** 
+   * 发送富文本消息 (支持 MessageBuilder 链式构建)
+   * 
+   * @example
+   * ctx.sendRichMessage(targetId, targetType, b => b.text('Hello ').at(userId))
+   */
+  sendRichMessage: (
+    targetId: string,
+    targetType: 'user' | 'group',
+    builder: (b: unknown) => unknown
+  ) => Promise<void>;
+
+  /** 发送 Markdown 消息 */
+  sendMarkdown: (
+    targetId: string,
+    targetType: 'user' | 'group',
+    markdown: MarkdownPayload
+  ) => Promise<void>;
+
+  /** 发送键盘按钮消息（可附带文本） */
+  sendKeyboard: (
+    targetId: string,
+    targetType: 'user' | 'group',
+    keyboard: KeyboardPayload,
+    content?: string
+  ) => Promise<void>;
+
+  /** 发送 Markdown + 键盘组合消息 */
+  sendMarkdownKeyboard: (
+    targetId: string,
+    targetType: 'user' | 'group',
+    markdown: MarkdownPayload,
+    keyboard: KeyboardPayload
+  ) => Promise<void>;
+
+  /** 
+   * 回复消息（自动处理 msg_id）
+   * 会自动引用原始消息进行回复
+   */
+  reply: (text: string) => Promise<void>;
+
   /** 记录日志 */
   log: (level: 'info' | 'warn' | 'error', message: string) => void;
+
   /** 获取当前连接的账号ID */
   getConnectedAccountId: () => string | null;
+
+  /** 获取原始消息事件 */
+  getMessageEvent: () => MessageEvent;
 };
 
 /**
@@ -74,23 +121,32 @@ export type Plugin = {
   enabled: boolean;
   /** 插件优先级（数字越小越先执行） */
   priority?: number;
-  
+
   /** 生命周期：插件加载时调用 */
   onLoad?: (ctx: PluginContext) => Promise<void> | void;
   /** 生命周期：插件卸载时调用 */
   onUnload?: () => Promise<void> | void;
-  
+
   /** 消息处理器 - 接收到消息时调用 */
   onMessage?: (event: MessageEvent, ctx: PluginContext) => Promise<boolean | void>;
-  
+
   /** 命令列表 */
   commands?: CommandDefinition[];
-  
+
   /** 定时任务 */
   cronJobs?: {
     pattern: string;
     handler: (ctx: PluginContext) => Promise<void> | void;
   }[];
+
+  /** 云崽事件处理器 */
+  eventHandlers?: {
+    event: string;
+    handler: (event: MessageEvent, ctx: PluginContext) => Promise<boolean | void>;
+  }[];
+
+  /** 清理回调，用于移除运行时注册内容 */
+  dispose?: () => Promise<void> | void;
 };
 
 /**

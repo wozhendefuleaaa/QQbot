@@ -1,8 +1,9 @@
 import { Express, Request, Response, NextFunction } from 'express';
-import { openApiTokens, accounts, platformStatus, conversations, messages, appConfig, platformLogs } from '../../core/store.js';
+import { openApiTokens, accounts, platformStatus, conversations, messages, appConfig, platformLogs, hashToken } from '../../core/store.js';
 import { connectGateway, disconnectGateway } from '../platform/gateway.js';
 import { ensureAccountTransportReady, sendTextMessage } from '../platform/unified-sender.js';
 import { BotAccount } from '../../types.js';
+import { AppError } from '../../core/middleware/error-handler.js';
 
 /**
  * OpenAPI 认证中间件
@@ -22,7 +23,8 @@ function openApiAuth(req: Request, res: Response, next: NextFunction): void {
   }
 
   const token = authHeader.slice(7);
-  const tokenInfo = openApiTokens.find(t => t.token === token && t.enabled);
+  const tokenHash = hashToken(token);
+  const tokenInfo = openApiTokens.find(t => t.token === tokenHash && t.enabled);
   
   if (!tokenInfo) {
     res.status(401).json({ error: '无效或已禁用的令牌', code: 'INVALID_TOKEN' });
@@ -65,7 +67,7 @@ export function registerExternalApiRoutes(app: Express): void {
   });
 
   // 连接机器人
-  app.post(`${apiRouter}/connect`, openApiAuth, async (req, res) => {
+  app.post(`${apiRouter}/connect`, openApiAuth, async (req, res, next) => {
     const { accountId } = req.body as { accountId?: string };
     
     if (!accountId) {
@@ -83,7 +85,7 @@ export function registerExternalApiRoutes(app: Express): void {
       await connectGateway(accountId);
       res.json({ ok: true, message: '正在连接...' });
     } catch (error) {
-      res.status(500).json({ error: String(error), code: 'CONNECT_FAILED' });
+      next(new AppError('连接机器人失败', 500, true, 'CONNECT_FAILED'));
     }
   });
 
@@ -94,7 +96,7 @@ export function registerExternalApiRoutes(app: Express): void {
   });
 
   // 发送消息
-  app.post(`${apiRouter}/send`, openApiAuth, async (req, res) => {
+  app.post(`${apiRouter}/send`, openApiAuth, async (req, res, next) => {
     const { targetId, targetType, message, msgId } = req.body as {
       targetId?: string;
       targetType?: 'user' | 'group';
@@ -124,7 +126,7 @@ export function registerExternalApiRoutes(app: Express): void {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      res.status(500).json({ error: String(error), code: 'SEND_FAILED' });
+      next(new AppError('发送消息失败', 500, true, 'SEND_FAILED'));
     }
   });
 

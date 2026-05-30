@@ -8,7 +8,8 @@ import {
   nowIso,
   platformStatus,
   scheduleSaveChatDataToDisk,
-  setPlatformError
+  setPlatformError,
+  trimMessagesIfNeeded
 } from '../../core/store.js';
 import { ensureAccountTransportReady, recallPlatformMessage, sendPlatformImageMessage, sendTextMessage, uploadPlatformImage } from '../platform/unified-sender.js';
 
@@ -111,10 +112,7 @@ export function registerChatRoutes(app: Express) {
     };
 
     messages.push(msg);
-    // 限制消息数量上限为 10000 条
-    if (messages.length > 10000) {
-      messages.splice(0, messages.length - 10000);
-    }
+    trimMessagesIfNeeded();
     conv.lastMessage = text;
     conv.updatedAt = nowIso();
     scheduleSaveChatDataToDisk();

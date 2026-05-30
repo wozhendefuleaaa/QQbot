@@ -1,5 +1,42 @@
 # 更新日志 (Changelog)
 
+## [1.18.0] - 2026-04-21
+
+### 新增
+
+#### 🔌 云崽插件运行链路补齐
+
+- 增强 [`backend/src/core/plugin-manager.ts`](backend/src/core/plugin-manager.ts)
+  - 补齐云崽 `apps/` 子插件加载注册流程
+  - 将云崽 `rule`、`handler`、`task` 分别映射到内部命令、事件处理器与定时任务
+  - 新增运行时注册/销毁与 cron 清理逻辑，插件卸载时同步释放资源
+  - 在消息分发阶段补充 `message`、`message.group`、`message.private` 等事件触发
+- 增强 [`backend/src/core/plugin-types.ts`](backend/src/core/plugin-types.ts)
+  - 为内部插件模型补充 `eventHandlers` 与 `dispose` 能力
+- 增强 [`backend/src/core/yunzai/bot.ts`](backend/src/core/yunzai/bot.ts)
+  - 基于 `EventEmitter` 实现 `Bot.on`、`Bot.once`、`Bot.emit`、`Bot.off`
+
+### 验证
+
+- 执行 [`npx tsc -p tsconfig.json --noEmit`](backend/package.json) ，结果通过
+- 运行 [`backend/check-all-plugins.ts`](backend/check-all-plugins.ts) 已观察到 `wawa-plugin 唱歌插件测试通过`
+- 校验结果显示注册表中的全部插件均已加载，可用
+
+
+## [1.17.0] - 2026-04-17
+
+### 新增
+
+#### 🎤 蛙蛙插件新增随机唱歌功能
+
+- 新增 [`backend/src/plugins/wawa-plugin/apps/唱歌.js`](backend/src/plugins/wawa-plugin/apps/唱歌.js)
+  - 参考椰奶插件的 `#唱歌` 交互方式，保留随机唱鸭能力
+  - 支持 `#唱歌` / `/唱歌` / `#唱鸭` / `/唱鸭` 指令触发
+  - 自动抓取唱鸭作品页中的音频地址与歌词并发送语音
+  - 增加来源异常、空数据、无音频地址等失败分支处理
+- 新增 [`backend/src/plugins/wawa-plugin/apps/唱歌.test.js`](backend/src/plugins/wawa-plugin/apps/唱歌.test.js)
+  - 覆盖页面数据提取、音频地址解码、随机作品选择与消息格式化测试
+
 ## [1.16.0] - 2026-04-17
 
 ### 新增

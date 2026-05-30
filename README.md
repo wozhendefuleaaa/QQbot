@@ -366,6 +366,12 @@ curl -X POST http://localhost:3000/api/plugins/my-plugin/reload
 
 参考 [`YUNZAI_ADAPTER.md`](backend/src/plugins/YUNZAI_ADAPTER.md) 了解如何使用云崽插件格式。
 
+当前后端已补齐以下运行链路：
+- 支持 [`backend/src/core/plugin-manager.ts`](backend/src/core/plugin-manager.ts) 对云崽 `apps/` 子插件逐个加载并注册
+- 支持 [`backend/src/core/plugin-manager.ts`](backend/src/core/plugin-manager.ts) 将 `rule`、`handler`、`task` 分别接入命令、事件处理器、定时任务
+- 支持 [`createYunzaiBot()`](backend/src/core/yunzai/bot.ts:13) 基于事件总线兼容 `Bot.on` / `Bot.emit`
+- 支持插件卸载时自动清理运行时注册与 cron 定时器，避免重复注册
+
 ## 更新日志
 
 查看 [CHANGELOG.md](CHANGELOG.md) 获取完整的更新历史。

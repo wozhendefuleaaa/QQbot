@@ -75,7 +75,9 @@ export interface YunzaiMember {
   card?: string;
   role?: 'owner' | 'admin' | 'member';
   mute?: (duration: number) => Promise<void>;
+  ban?: (duration: number) => Promise<void>;
   kick?: () => Promise<void>;
+  sendMsg?: (message: string | SegmentType | SegmentType[]) => Promise<any>;
   info?: any;
 }
 
@@ -105,6 +107,8 @@ export interface YunzaiRuntime {
 
 export interface YunzaiEvent {
   message_id: string;
+  /** 消息ID别名 (兼容云崽插件使用 e.msg_id) */
+  msg_id?: string;
   raw_message: string;
   msg: string;
   message: string | SegmentType[];
@@ -155,7 +159,8 @@ export interface YunzaiEvent {
     error: (...args: any[]) => void;
     debug: (...args: any[]) => void;
   };
-  recall?: () => Promise<void>;
+  recall?: () => Promise<any>;
+  bot?: YunzaiBot;
   getGroupMemberList?: () => Promise<any[]>;
   getGroupMemberInfo?: (userId: string) => Promise<any>;
   setGroupCard?: (card: string) => Promise<void>;

@@ -33,6 +33,27 @@ export function broadcastPlatformLog(log: any) {
   broadcastEvent('platform_log', log);
 }
 
+// 广播客户端连接数
+export function broadcastConnectionCount() {
+  broadcastEvent('connection_count', { count: sseClients.size, timestamp: new Date().toISOString() });
+}
+
+export function broadcastAccountUpdate(accountId: string) {
+  broadcastEvent('account_update', { accountId, timestamp: new Date().toISOString() });
+}
+
+export function broadcastPluginStatus(pluginId: string, status: string) {
+  broadcastEvent('plugin_status', { pluginId, status, timestamp: new Date().toISOString() });
+}
+
+export function broadcastConfigChange() {
+  broadcastEvent('config_change', { timestamp: new Date().toISOString() });
+}
+
+export function broadcastStatisticsUpdate() {
+  broadcastEvent('statistics_update', { timestamp: new Date().toISOString() });
+}
+
 // SSE 端点
 router.get('/events', (req: Request, res: Response) => {
   // 设置 SSE headers
@@ -47,6 +68,7 @@ router.get('/events', (req: Request, res: Response) => {
   // 添加到客户端列表
   sseClients.add(res);
   console.log(`[sse] 客户端连接，当前连接数: ${sseClients.size}`);
+  broadcastConnectionCount();
   
   // 心跳保活
   const heartbeat = setInterval(() => {
@@ -63,6 +85,7 @@ router.get('/events', (req: Request, res: Response) => {
     clearInterval(heartbeat);
     sseClients.delete(res);
     console.log(`[sse] 客户端断开，当前连接数: ${sseClients.size}`);
+    broadcastConnectionCount();
   });
 });
 

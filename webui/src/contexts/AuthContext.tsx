@@ -68,6 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, [checkAuth]);
 
+  // 监听 api.ts 发出的全局 401 事件
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
   const login = async (credentials: LoginRequest): Promise<{ success: boolean; message: string; requirePasswordChange?: boolean }> => {
     try {
       const response = await fetch('/api/auth/login', {

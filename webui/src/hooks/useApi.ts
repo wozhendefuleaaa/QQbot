@@ -450,9 +450,9 @@ export function useTogglePluginPermission() {
       disabled: boolean;
     }) =>
       api<{ ok: boolean; data: PluginPermissionMatrix }>(
-        `/api/config/plugin-permissions/${accountId}/plugins`,
+        `/api/config/plugin-permissions/${accountId}/toggle`,
         {
-          method: 'POST',
+          method: 'PATCH',
           body: JSON.stringify({ groupId, pluginId, disabled }),
         }
       ),
@@ -481,9 +481,9 @@ export function useBatchTogglePluginPermission() {
       await Promise.all(
         pluginIds.map((pluginId) =>
           api<{ ok: boolean; data: PluginPermissionMatrix }>(
-            `/api/config/plugin-permissions/${accountId}/plugins`,
+            `/api/config/plugin-permissions/${accountId}/toggle`,
             {
-              method: 'POST',
+              method: 'PATCH',
               body: JSON.stringify({ groupId, pluginId, disabled }),
             }
           )

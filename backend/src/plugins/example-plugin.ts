@@ -91,6 +91,49 @@ const examplePlugin: Plugin = {
         ctx.log('info', `复读消息: ${content}`);
         return content;
       }
+    },
+    {
+      name: 'menu',
+      description: '显示功能菜单（Markdown + 键盘按钮示例）',
+      cooldown: 5,
+      handler: async (_args, event, ctx) => {
+        const targetId = event.isGroup ? event.groupId! : event.senderId;
+        const targetType = event.isGroup ? 'group' : 'user' as const;
+
+        // 方式1: Markdown 消息
+        await ctx.sendMarkdown(targetId, targetType, {
+          custom_template_id: 'menu_template',
+          params: [
+            { key: 'title', values: ['功能菜单'] },
+            { key: 'content', values: ['请选择以下功能：'] }
+          ]
+        });
+
+        // 方式2: 文本 + 键盘按钮
+        // 使用 sendRichMessage 构建带按钮的消息
+        await ctx.sendRichMessage(targetId, targetType, (b: any) => {
+          b.text('请选择操作：');
+          // 添加按钮（需在 QQ 开放平台配置按钮模板）
+          b.keyboard({
+            rows: [{
+              buttons: [
+                {
+                  id: 'btn_hello',
+                  render_data: { label: '打招呼', visited_label: '已选打招呼', style: 1 },
+                  action: { type: 2, data: '/hello', permission: { type: 2 } }
+                },
+                {
+                  id: 'btn_time',
+                  render_data: { label: '看时间', visited_label: '已选时间', style: 1 },
+                  action: { type: 2, data: '/time', permission: { type: 2 } }
+                }
+              ]
+            }]
+          });
+        });
+
+        return '菜单已发送，请查看上方消息 👆';
+      }
     }
   ]
 };

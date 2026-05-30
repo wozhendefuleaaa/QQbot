@@ -55,13 +55,40 @@ shutdown() {
 trap shutdown SIGTERM SIGINT SIGQUIT
 
 # 保持容器运行并监控后端进程
+RESTART_ATTEMPT=0
+LAST_START_TIME=$(date +%s)
+MAX_BACKOFF=60
+
 while true; do
     # 检查后端进程
     if ! kill -0 $BACKEND_PID 2>/dev/null; then
-        echo "[警告] 后端服务已停止，正在重启..."
+        CURRENT_TIME=$(date +%s)
+        UPTIME=$((CURRENT_TIME - LAST_START_TIME))
+        
+        # 稳定运行超过 30s 后重置退避计数
+        if [ $UPTIME -gt 30 ]; then
+            RESTART_ATTEMPT=0
+        fi
+        
+        RESTART_ATTEMPT=$((RESTART_ATTEMPT + 1))
+        
+        # 指数退避: 2^attempt 秒，封顶 MAX_BACKOFF 秒
+        DELAY=$((2 ** RESTART_ATTEMPT))
+        if [ $DELAY -gt $MAX_BACKOFF ]; then
+            DELAY=$MAX_BACKOFF
+        fi
+        if [ $DELAY -lt 1 ]; then
+            DELAY=1
+        fi
+        
+        echo "[警告] 后端服务已停止 (第 ${RESTART_ATTEMPT} 次崩溃)，${DELAY}s 后重启..."
+        sleep $DELAY
+        
+        echo "[重启] 正在启动后端服务..."
         cd /app
         node backend/dist/index.js > /app/logs/backend.log 2>&1 &
         BACKEND_PID=$!
+        LAST_START_TIME=$(date +%s)
     fi
     
     sleep 5

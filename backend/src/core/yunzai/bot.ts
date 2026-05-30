@@ -3,6 +3,7 @@
  * 负责创建和管理 Yunzai 风格的 Bot 对象
  */
 
+import { EventEmitter } from 'events'
 import { YunzaiBot, YunzaiGroup, YunzaiFriend, YunzaiMember, SegmentType } from './types.js'
 import { segment, segmentToText, segmentsToQQOfficial } from './segment.js'
 
@@ -28,6 +29,8 @@ export function createYunzaiBot(
     getMsg?: (messageId: string) => Promise<any>
   }
 ): YunzaiBot {
+  const eventBus = new EventEmitter()
+
   const bot: YunzaiBot = {
     // 基础信息
     uin: botId,
@@ -117,7 +120,21 @@ export function createYunzaiBot(
       nickname: '',
       card: '',
       role: 'member',
-      info: {}
+      info: {},
+      sendMsg: async (msg: string | SegmentType | SegmentType[]) => {
+        const text = typeof msg === 'string' ? msg : segmentToText(msg)
+        await api.sendMessage(groupId, 'group', text)
+      },
+      kick: async () => {
+        if (api.setGroupKick) {
+          await api.setGroupKick(groupId, userId)
+        }
+      },
+      ban: async (duration: number = 0) => {
+        if (api.setGroupBan) {
+          await api.setGroupBan(groupId, userId, duration)
+        }
+      }
     }),
     
     // 挑选群
@@ -128,7 +145,17 @@ export function createYunzaiBot(
         const text = typeof msg === 'string' ? msg : segmentToText(msg)
         await api.sendMessage(groupId, 'group', text)
       },
-      pickMember: (userId: string): YunzaiMember => bot.pickMember(groupId, userId)
+      pickMember: (userId: string): YunzaiMember => bot.pickMember(groupId, userId),
+      kickMember: async (userId: string) => {
+        if (api.setGroupKick) {
+          await api.setGroupKick(groupId, userId)
+        }
+      },
+      muteMember: async (userId: string, duration: number = 0) => {
+        if (api.setGroupBan) {
+          await api.setGroupBan(groupId, userId, duration)
+        }
+      }
     }),
     
     // 挑选好友
@@ -277,24 +304,24 @@ export function createYunzaiBot(
     
     // 事件监听
     on: (event: string, listener: (...args: any[]) => void) => {
-      // 占位实现
+      eventBus.on(event, listener)
     },
     
     once: (event: string, listener: (...args: any[]) => void) => {
-      // 占位实现
+      eventBus.once(event, listener)
     },
     
     emit: (event: string, ...args: any[]) => {
-      return false
+      return eventBus.emit(event, ...args)
     },
     
     off: (event: string, listener: (...args: any[]) => void) => {
-      // 占位实现
+      eventBus.off(event, listener)
     },
     
     // 发送事件
     em: (event: string, data: any) => {
-      // 占位实现
+      eventBus.emit(event, data)
     }
   }
   

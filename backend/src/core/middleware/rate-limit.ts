@@ -29,9 +29,10 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
   } = options;
 
   const store: RateLimitStore = {};
+  const MAX_STORE_ENTRIES = 10000; // 防止 store 无限增长
 
   // 定期清理过期记录
-  setInterval(() => {
+  const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const key of Object.keys(store)) {
       if (store[key].resetTime < now) {
@@ -39,6 +40,10 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
       }
     }
   }, windowMs);
+  // 允许进程退出时清理 timer
+  if (cleanupTimer && typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
+    cleanupTimer.unref();
+  }
 
   return (req: Request, res: Response, next: NextFunction) => {
     // 跳过特定请求
@@ -51,6 +56,19 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
 
     // 初始化或重置过期记录
     if (!store[key] || store[key].resetTime < now) {
+      // 防止 store 无限增长
+      if (!store[key] && Object.keys(store).length >= MAX_STORE_ENTRIES) {
+        // 清理最早的过期记录
+        for (const k of Object.keys(store)) {
+          if (store[k].resetTime < now) {
+            delete store[k];
+          }
+        }
+        // 如果仍然满，跳过限制
+        if (Object.keys(store).length >= MAX_STORE_ENTRIES) {
+          return next();
+        }
+      }
       store[key] = {
         count: 0,
         resetTime: now + windowMs

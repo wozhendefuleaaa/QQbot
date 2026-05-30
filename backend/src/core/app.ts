@@ -1,5 +1,4 @@
 import cors from 'cors';
-import dotenv from 'dotenv';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import path from 'path';
@@ -20,7 +19,9 @@ import {
   loadPluginsFromDisk,
   loadQuickRepliesFromDisk,
   nowIso,
-  accounts
+  accounts,
+  syncSaveCriticalData,
+  cleanupTmpFiles
 } from './store.js';
 import { loadAllPlugins } from './plugin-manager.js';
 import { registerAccountRoutes } from '../modules/accounts/routes.js';
@@ -35,13 +36,13 @@ import { registerQuickReplyRoutes } from '../modules/quickreply/routes.js';
 import { registerStatisticsRoutes } from '../modules/statistics/routes.js';
 import { registerGroupRoutes } from '../modules/group/routes.js';
 import { registerExternalApiRoutes } from '../modules/external/routes.js';
-import { registerSseRoutes } from '../modules/sse/routes.js';
+import { registerSseRoutes, broadcastStatisticsUpdate } from '../modules/sse/routes.js';
 import { registerAuthRoutes } from '../modules/auth/routes.js';
 import { registerMarketRoutes } from '../modules/market/routes.js';
-import { initializeDefaultAdmin } from './auth.js';
+import { initializeDefaultAdmin, ensureJwtSecretSafety } from './auth.js';
+import { swaggerSpec } from './swagger.js';
+import swaggerUi from 'swagger-ui-express';
 import { createApiRateLimiter, errorHandler, notFoundHandler, authMiddleware } from './middleware/index.js';
-
-dotenv.config({ path: '../.env' });
 
 const app = express();
 
@@ -136,8 +137,10 @@ app.get('/ready', async (_req, res) => {
   }
 });
 
-// 认证路由（无需认证）
-registerAuthRoutes(app);
+// 无认证路由
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
+app.use('/api/auth', registerAuthRoutes);
 
 // External API 路由（使用独立的 OpenAPI Token 认证，必须在 JWT 认证中间件之前注册）
 registerExternalApiRoutes(app);
@@ -167,9 +170,20 @@ registerOneBotRoutes(app);
 if (process.env.NODE_ENV === 'production') {
   const webuiDist = process.env.WEBUI_DIST || path.resolve(process.cwd(), 'webui/dist');
   app.use(express.static(webuiDist));
-  // SPA 回退：所有非 API 请求返回 index.html
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(webuiDist, 'index.html'));
+  // SPA 回退：只对非 API / 非 SSE / 非 OneBot / 非文档路径返回 index.html
+  app.get('*', (req, res, next) => {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/api-docs') ||
+      req.path.startsWith('/onebot') ||
+      req.path === '/health' ||
+      req.path === '/ready'
+    ) {
+      return next();
+    }
+    res.sendFile(path.join(webuiDist, 'index.html'), (err) => {
+      if (err) res.status(404).json({ error: 'NotFound', message: '页面不存在' });
+    });
   });
 }
 
@@ -180,6 +194,9 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 async function bootstrap() {
+  ensureJwtSecretSafety();
+  cleanupTmpFiles();
+
   await loadAccountsFromDisk();
   await loadAppConfigFromDisk();
   await loadPluginsFromDisk();
@@ -205,6 +222,11 @@ async function bootstrap() {
     
     // 自动连接第一个 QQ 官方账号
     autoConnectFirstAccount();
+
+    // 每 30 秒广播一次统计更新给 SSE 客户端
+    setInterval(() => {
+      broadcastStatisticsUpdate();
+    }, 30000);
   });
 }
 
@@ -228,23 +250,57 @@ async function autoConnectFirstAccount() {
   }
 }
 
+let isShuttingDown = false;
+
 async function setupProcessExitHooks() {
   const flushAndExit = async (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
     addSystemLog('INFO', 'framework', `收到进程信号 ${signal}，正在落盘聊天数据`);
-    await flushSaveChatDataToDisk();
+    try {
+      await flushSaveChatDataToDisk();
+      addSystemLog('INFO', 'framework', `数据落盘完成，正在退出`);
+    } catch (error) {
+      console.error(`[FATAL] 退出时落盘失败:`, error);
+      syncSaveCriticalData();
+    }
+    // 强制超时兜底：最多等 5 秒，避免无限挂起
+    const forceExitTimer = setTimeout(() => {
+      console.error('[FATAL] 5s 内未完成退出，强制退出');
+      process.exit(1);
+    }, 5000);
+    forceExitTimer.unref();
     process.exit(0);
   };
 
+  // SIGINT/SIGTERM 同步阻塞，确保 flush 完成后再 exit
   process.on('SIGINT', () => {
-    void flushAndExit('SIGINT');
+    flushAndExit('SIGINT');
   });
 
   process.on('SIGTERM', () => {
-    void flushAndExit('SIGTERM');
+    flushAndExit('SIGTERM');
   });
 
-  process.on('beforeExit', () => {
-    void flushSaveChatDataToDisk();
+  process.on('beforeExit', async () => {
+    await flushSaveChatDataToDisk();
+  });
+
+  process.on('uncaughtException', (error) => {
+    addSystemLog('ERROR', 'framework', `未捕获异常: ${error.message}\n${error.stack}`);
+    syncSaveCriticalData();
+    console.error('[FATAL] uncaughtException:', error);
+    if (!isShuttingDown) {
+      isShuttingDown = true;
+      process.exit(1);
+    }
+  });
+
+  // unhandledRejection 不应直接退出进程，记录日志并发出告警
+  process.on('unhandledRejection', (reason) => {
+    addSystemLog('ERROR', 'framework', `未处理的 Promise 拒绝: ${reason}`);
+    console.error('[WARN] unhandledRejection (non-fatal):', reason);
+    // 不立即退出，只记录。真正的崩溃应通过 uncaughtException 处理
   });
 }
 

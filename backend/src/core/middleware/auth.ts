@@ -1,7 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, findUserById, toPublicUser } from '../auth.js';
 import { JwtPayload, User } from '../../types.js';
-import { UnauthorizedError } from './error-handler.js';
+import { UnauthorizedError, ForbiddenError } from './error-handler.js';
+
+const PASSWORD_CHANGE_ALLOWED_PATHS = ['/api/auth/change-password', '/api/auth/logout'];
+
+function isPasswordChangeAllowedPath(req: Request): boolean {
+  const requestPath = req.originalUrl.split('?')[0];
+  return PASSWORD_CHANGE_ALLOWED_PATHS.includes(requestPath);
+}
 
 // 扩展 Express Request 类型
 declare global {
@@ -37,6 +44,11 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
   
   req.user = toPublicUser(user);
   req.jwtPayload = payload;
+
+  if (req.user.requirePasswordChange && !isPasswordChangeAllowedPath(req)) {
+    return next(new ForbiddenError('请先修改默认密码后再继续操作'));
+  }
+
   next();
 }
 
@@ -58,6 +70,10 @@ export function optionalAuthMiddleware(req: Request, _res: Response, next: NextF
     if (user) {
       req.user = toPublicUser(user);
       req.jwtPayload = payload;
+
+      if (req.user.requirePasswordChange && !isPasswordChangeAllowedPath(req)) {
+        return next(new ForbiddenError('请先修改默认密码后再继续操作'));
+      }
     }
   }
   
@@ -74,7 +90,7 @@ export function requireRole(...roles: Array<'admin' | 'user'>) {
     }
     
     if (!roles.includes(req.user.role)) {
-      return next(new UnauthorizedError('权限不足'));
+      return next(new ForbiddenError('权限不足'));
     }
     
     next();

@@ -13,9 +13,13 @@ import {
   setPlatformError
 } from '../../core/store.js';
 import { broadcastNewMessage, broadcastPlatformStatus } from '../sse/routes.js';
-import { OP_RECONNECT, OP_INVALID_SESSION, OP_HELLO, OP_HEARTBEAT_ACK, DEFAULT_INTENTS, GatewayPayload, GatewayHelloData } from './gateway-utils.js';
+import { OP_RECONNECT, OP_INVALID_SESSION, OP_HELLO, OP_HEARTBEAT_ACK, DEFAULT_INTENTS, GatewayPayload, GatewayHelloData, calculateReconnectDelay } from './gateway-utils.js';
 import { parseInboundEvent, safePayloadSnippet, firstNonEmptyString } from './gateway-utils.js';
 import { trySendToQQ, recordMsgIdTimestamp } from './gateway-message.js';
+import { parseGatewayEvent, extractSessionId } from '../../core/qqbot/index.js';
+
+/** Gateway session_id (用于 RESUME) */
+let gatewaySessionId: string | null = null;
 
 // 导出消息相关函数
 export {
@@ -51,7 +55,7 @@ let heartbeatIntervalMs = 0;
 let lastHeartbeatAckAt = 0;
 let reconnectAttempts = 0;
 let reconnectForceRefreshToken = false;
-let suppressReconnectCloseCount = 0;
+let intentionalClose = false; // 标记主动关闭，避免触发自动重连
 
 /**
  * 获取 Gateway URL
@@ -129,7 +133,7 @@ function scheduleReconnect(forceRefreshToken = false, reason?: string): void {
   if (reconnectTimer) return;
 
   reconnectAttempts += 1;
-  const delay = Math.min(30_000, 5_000 * reconnectAttempts);
+  const delay = calculateReconnectDelay(reconnectAttempts);
   addPlatformLog('WARN', `${delay / 1000} 秒后自动重连 Gateway${reason ? `（${reason}）` : ''}`);
 
   reconnectTimer = setTimeout(() => {
@@ -210,14 +214,36 @@ async function handleGatewayMessage(raw: WebSocket.RawData): Promise<void> {
     }
 
     if (payload.t) {
-      const parsed = parseInboundEvent(payload);
+      // ---- READY 事件：记录 session_id 供 RESUME 使用 ----
+      if (payload.t === 'READY') {
+        const readyData = payload.d as Record<string, unknown> | undefined;
+        if (readyData?.session_id) {
+          gatewaySessionId = String(readyData.session_id);
+          addPlatformLog('INFO', `Gateway READY: session_id=${gatewaySessionId.slice(0, 8)}...`);
+        }
+        addPlatformLog('INFO', 'Gateway 连接已完成 READY');
+        return;
+      }
+
+      // ---- RESUMED 事件 ----
+      if (payload.t === 'RESUMED') {
+        addPlatformLog('INFO', 'Gateway 会话已恢复 (RESUMED)');
+        return;
+      }
+
+      // 先尝试使用新版 SDK 的事件解析器（支持全部事件类型）
+      const sdkParsed = parseGatewayEvent(payload as import('../../core/qqbot/types.js').GatewayPayload);
+      // 回退到旧版解析器
+      const parsed = sdkParsed || parseInboundEvent(payload);
+
       if (parsed?.shouldRecord) {
         // 记录 msg_id 时间戳，用于后续回复时判断是否过期
         if (parsed.inboundMsgId) {
           recordMsgIdTimestamp(parsed.inboundMsgId);
         }
 
-        const saved = ensureConversationForInbound(parsed.peerId, parsed.content, parsed.peerType, {
+        const peerType = (parsed.peerType === 'channel' ? 'group' : parsed.peerType) as 'user' | 'group';
+        const saved = ensureConversationForInbound(parsed.peerId, parsed.content, peerType, {
           peerName: parsed.peerName,
           inboundMsgId: parsed.inboundMsgId
         });
@@ -243,9 +269,9 @@ async function handleGatewayMessage(raw: WebSocket.RawData): Promise<void> {
           const targetId = parsed.peerOpenId || parsed.peerId;
           // 传入 inboundMsgId 用于被动回复
           const inboundMsgId = parsed.inboundMsgId || undefined;
-          addPlatformLog('INFO', `分发消息到插件系统: text="${parsed.content.slice(0, 50)}" targetId=${targetId} peerType=${parsed.peerType} msgId=${inboundMsgId || 'none'}`);
+          addPlatformLog('INFO', `分发消息到插件系统: text="${parsed.content.slice(0, 50)}" targetId=${targetId} peerType=${peerType} msgId=${inboundMsgId || 'none'}`);
           // 传递额外的发送信息：targetId (openid)、peerType 和 inboundMsgId
-          await dispatchMessage(inboundMsg, targetId, parsed.peerType, inboundMsgId);
+          await dispatchMessage(inboundMsg, targetId, peerType, inboundMsgId);
           
           // 通过 SSE 广播新消息到前端
           broadcastNewMessage(saved.conversationId, inboundMsg);
@@ -261,6 +287,7 @@ async function handleGatewayMessage(raw: WebSocket.RawData): Promise<void> {
             `收到事件 ${payload.t}${eventId ? ` id=${eventId}` : ''} 但未命中解析规则，raw=${rawSnippet}`
           );
         } else {
+          // 非消息事件（GUILD_*, CHANNEL_*, MEMBER_*, REACTION_*, FORUM_*, AUDIO_* 等）
           addPlatformLog('INFO', `收到事件 ${payload.t}${eventId ? ` id=${eventId}` : ''}`);
         }
       }
@@ -326,10 +353,10 @@ export async function connectGateway(accountId: string, forceRefreshToken = fals
 
     if (gatewaySocket && gatewaySocket.readyState !== WebSocket.CLOSED) {
       try {
-        suppressReconnectCloseCount += 1;
+        intentionalClose = true;
         gatewaySocket.close();
       } catch {
-        // no-op
+        intentionalClose = false;
       }
     }
 
@@ -371,9 +398,9 @@ export async function connectGateway(accountId: string, forceRefreshToken = fals
       // 广播平台状态变化
       broadcastPlatformStatus({ connected: false });
 
-      if (suppressReconnectCloseCount > 0) {
-        suppressReconnectCloseCount -= 1;
-        addPlatformLog('INFO', `已忽略一次预期内断连 close code=${code}`);
+      if (intentionalClose) {
+        intentionalClose = false;
+        addPlatformLog('INFO', `已忽略主动断开 close code=${code}`);
         return;
       }
 
@@ -420,7 +447,7 @@ export function disconnectGateway(autoReconnect = true): void {
   const reconnectAccountId = platformStatus.connectedAccountId;
 
   if (gatewaySocket) {
-    suppressReconnectCloseCount += 1;
+    intentionalClose = true;
     gatewaySocket.close();
     gatewaySocket = null;
   }

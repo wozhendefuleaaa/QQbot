@@ -98,13 +98,42 @@ export function createYunzaiEvent(
         const text = typeof msg === 'string' ? msg : segmentToText(msg)
         await sendMessage(actualGroupId, 'group', text)
       },
+      recallMsg: async (messageId: string) => {
+        console.log(`[Yunzai] group.recallMsg called: ${actualGroupId}/${messageId}`)
+      },
+      makeForwardMsg: async (messages: any[]) => {
+        const bot = (globalThis as any).Bot
+        if (bot?.makeForwardMsg) {
+          return bot.makeForwardMsg(messages)
+        }
+        return {
+          type: 'forward',
+          data: messages
+        }
+      },
       pickMember: (userId: string): YunzaiMember => ({
         user_id: userId,
         nickname: '',
         card: '',
         role: 'member',
-        info: {}
-      })
+        info: {},
+        sendMsg: async (msg: any) => {
+          const text = typeof msg === 'string' ? msg : segmentToText(msg)
+          await sendMessage(actualGroupId, 'group', text)
+        },
+        kick: async () => {
+          console.log(`[Yunzai] pickMember.kick called: ${actualGroupId}/${userId}`)
+        },
+        ban: async (duration: number = 0) => {
+          console.log(`[Yunzai] pickMember.ban called: ${actualGroupId}/${userId} duration=${duration}`)
+        }
+      }),
+      kickMember: async (userId: string) => {
+        console.log(`[Yunzai] group.kickMember called: ${actualGroupId}/${userId}`)
+      },
+      muteMember: async (userId: string, duration: number = 0) => {
+        console.log(`[Yunzai] group.muteMember called: ${actualGroupId}/${userId} duration=${duration}`)
+      }
     }
   }
   
@@ -158,6 +187,9 @@ export function createYunzaiEvent(
     user_id,
     self_id: botId,
     message_id: message_id || '',
+    // msg_id 别名（兼容云崽插件习惯使用 e.msg_id）
+    get msg_id(): string | undefined { return this.message_id; },
+    set msg_id(v: string | undefined) { this.message_id = v || ''; },
     message: messageSegments,
     raw_message: content || '',
     msg: content || '',
@@ -225,6 +257,11 @@ export function createYunzaiEvent(
       
       await sendMessage(targetId, targetType, text)
       return { message_id: '' }
+    },
+
+    bot: (globalThis as any).Bot,
+    recall: async () => {
+      console.log(`[Yunzai] recall called: ${message_id || ''}`)
     },
     
     // 获取 @ 用户列表

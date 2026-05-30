@@ -1,4 +1,5 @@
-import { FormEvent, useRef, useState } from 'react';
+import { FormEvent, useRef, useState, useEffect, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { fmtTime } from '../../services/api';
 import { ChatMessage, Conversation, MessageStatus, QuickReply } from '../../types';
 import { GroupManagePanel } from './GroupManagePanel';
@@ -83,6 +84,24 @@ export function MessagePanel({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
+  });
+
+  const scrollToBottom = useCallback(() => {
+    if (messages.length > 0) {
+      virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
+    }
+  }, [messages.length, virtualizer]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [scrollToBottom]);
 
   // 常用表情列表
   const commonEmojis = [
@@ -290,7 +309,8 @@ export function MessagePanel({
 
       {/* 消息区域 */}
       <div
-        className="flex-1 min-h-0 overflow-auto p-3 lg:p-4 space-y-2 lg:space-y-3"
+        ref={scrollContainerRef}
+        className="flex-1 min-h-0 overflow-auto p-3 lg:p-4"
         onClick={closeContextMenu}
         style={{
           backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--muted-foreground) / 0.1) 1px, transparent 0)',
@@ -306,8 +326,13 @@ export function MessagePanel({
             </p>
           </div>
         ) : (
-          <>
-            {/* 加载更多按钮 */}
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
             {hasMoreMessages && (
               <div className="flex justify-center mb-3 lg:mb-4">
                 <Button
@@ -321,81 +346,76 @@ export function MessagePanel({
                 </Button>
               </div>
             )}
-            {messages.map((msg, index) => (
-              <div
-                key={msg.id}
-                className={cn(
-                  "max-w-[85%] lg:max-w-[75%] group animate-slide-up",
-                  msg.direction === 'out' ? "ml-auto" : "mr-auto"
-                )}
-                style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}
-              >
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const msg = messages[virtualItem.index];
+              return (
                 <div
+                  key={msg.id}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
                   className={cn(
-                    "relative p-2 lg:p-3 rounded-2xl cursor-context-menu shadow-sm transition-all duration-200",
-                    msg.direction === 'out'
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "bg-muted rounded-bl-sm",
-                    "hover:shadow-md hover:scale-[1.01]"
+                    "max-w-[85%] lg:max-w-[75%] group",
+                    msg.direction === 'out' ? "ml-auto" : "mr-auto"
                   )}
-                  onContextMenu={(e) => handleContextMenu(e, msg.id)}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                    padding: '4px 0',
+                  }}
                 >
-                  {/* 引用消息 */}
-                  {msg.replyTo && (
+                  <div
+                    className={cn(
+                      "relative p-2 lg:p-3 rounded-2xl cursor-context-menu shadow-sm transition-all duration-200 inline-block",
+                      msg.direction === 'out'
+                        ? "bg-primary text-primary-foreground rounded-br-sm float-right"
+                        : "bg-muted rounded-bl-sm float-left",
+                      "hover:shadow-md hover:scale-[1.01]"
+                    )}
+                    onContextMenu={(e) => handleContextMenu(e, msg.id)}
+                  >
+                    {msg.replyTo && (
+                      <div className={cn(
+                        "flex items-center gap-1 mb-1.5 text-xs opacity-80 border-l-2 pl-2 rounded-sm",
+                        msg.direction === 'out' ? "border-primary-foreground/50" : "border-primary/50"
+                      )}>
+                        <span>↩</span>
+                        <span className="truncate max-w-[200px]">
+                          {messages.find((m) => m.id === msg.replyTo)?.text.slice(0, 50) || '原消息'}...
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
                     <div className={cn(
-                      "flex items-center gap-1 mb-1.5 text-xs opacity-80 border-l-2 pl-2 rounded-sm",
-                      msg.direction === 'out' ? "border-primary-foreground/50" : "border-primary/50"
+                      "flex items-center justify-end gap-2 mt-1.5",
+                      msg.direction === 'out' ? "text-primary-foreground/70" : "text-black"
                     )}>
-                      <span>↩</span>
-                      <span className="truncate max-w-[200px]">
-                        {messages.find((m) => m.id === msg.replyTo)?.text.slice(0, 50) || '原消息'}
-                        ...
-                      </span>
+                      <span className="text-xs">{fmtTime(msg.createdAt)}</span>
+                      {msg.direction === 'out' && <MessageStatusIndicator status={msg.status} />}
                     </div>
-                  )}
-
-                  {/* 消息内容 */}
-                  <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
-
-                  {/* 消息元信息 */}
-                  <div className={cn(
-                    "flex items-center justify-end gap-2 mt-1.5",
-                    msg.direction === 'out' ? "text-primary-foreground/70" : "text-black"
-                  )}>
-                    <span className="text-xs">{fmtTime(msg.createdAt)}</span>
-                    {msg.direction === 'out' && <MessageStatusIndicator status={msg.status} />}
+                    {msg.mentionedUsers && msg.mentionedUsers.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {msg.mentionedUsers.map((user) => (
+                          <Badge key={user} variant={msg.direction === 'out' ? 'secondary' : 'outline'} className="text-xs">
+                            @{user}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
-                  {/* @提及 */}
-                  {msg.mentionedUsers && msg.mentionedUsers.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {msg.mentionedUsers.map((user) => (
-                        <Badge 
-                          key={user} 
-                          variant={msg.direction === 'out' ? 'secondary' : 'outline'} 
-                          className="text-xs"
-                        >
-                          @{user}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+                  <div className={cn(
+                    "text-xs text-black mt-1 opacity-0 group-hover:opacity-100 transition-opacity clear-both",
+                    msg.direction === 'out' ? "text-right" : "text-left"
+                  )}>
+                    右键查看更多操作
+                  </div>
                 </div>
-
-                {/* 消息操作提示 */}
-                <div className={cn(
-                  "text-xs text-black mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
-                  msg.direction === 'out' ? "text-right" : "text-left"
-                )}>
-                  右键查看更多操作
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </>
+              );
+            })}
+          </div>
         )}
-
-        {/* 右键菜单 */}
         {showContextMenu && (
           <Card
             className="fixed z-50 p-1.5 shadow-xl min-w-[120px] border bg-card/95 backdrop-blur-sm"

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Express } from 'express';
-import { appConfig, id, nowIso, openApiTokens, saveOpenApiTokensToDisk } from '../../core/store.js';
+import { appConfig, id, nowIso, openApiTokens, saveOpenApiTokensToDisk, hashToken } from '../../core/store.js';
 
 function maskToken(token: string) {
   if (token.length < 10) return '***';
@@ -34,18 +34,24 @@ export function registerOpenApiRoutes(app: Express) {
     }
 
     const raw = crypto.randomBytes(24).toString('hex');
-    const token = `qqbot_${raw}`;
+    const rawToken = `qqbot_${raw}`;
     const item = {
       id: id('oak'),
       name,
-      token,
+      token: hashToken(rawToken),
       enabled: true,
       createdAt: nowIso()
     };
 
     openApiTokens.unshift(item);
     await saveOpenApiTokensToDisk();
-    res.status(201).json(item);
+    res.status(201).json({
+      id: item.id,
+      name: item.name,
+      token: rawToken,
+      enabled: item.enabled,
+      createdAt: item.createdAt
+    });
   });
 
   app.post('/api/openapi/tokens/:id/toggle', async (req, res) => {

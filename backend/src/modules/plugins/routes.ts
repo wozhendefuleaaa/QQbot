@@ -13,6 +13,7 @@ import {
 } from '../../core/plugin-manager.js';
 import fs from 'fs';
 import path from 'path';
+import { broadcastPluginStatus } from '../sse/routes.js';
 
 export function registerPluginRoutes(app: Express) {
   // 获取插件源码
@@ -115,6 +116,9 @@ export function registerPluginRoutes(app: Express) {
         }
         
         savePluginsToDisk();
+        for (const plugin of pluginArray) {
+          broadcastPluginStatus(plugin.id, 'loaded');
+        }
         const firstPlugin = pluginArray[0];
         res.status(201).json({ id: firstPlugin.id, filename: safeName, loaded: true, count: pluginArray.length });
       } else {
@@ -284,6 +288,7 @@ export function registerPluginRoutes(app: Express) {
     plugins.unshift(item);
     await savePluginsToDisk();
     addSystemLog('INFO', 'plugin', `已创建插件：${item.name}`);
+    broadcastPluginStatus(item.id, 'created');
     res.status(201).json(item);
   });
 
@@ -306,6 +311,7 @@ export function registerPluginRoutes(app: Express) {
     }
 
     addSystemLog('INFO', 'plugin', `插件${item.enabled ? '启用' : '停用'}：${item.name}`);
+    broadcastPluginStatus(item.id, item.enabled ? 'enabled' : 'disabled');
     res.json(item);
   });
 
@@ -320,6 +326,7 @@ export function registerPluginRoutes(app: Express) {
     try {
       const reloaded = await reloadPlugin(item.id);
       if (reloaded) {
+        broadcastPluginStatus(reloaded.id, 'reloaded');
         res.json({ ok: true, plugin: { id: reloaded.id, name: reloaded.name, version: reloaded.version } });
       } else {
         res.status(400).json({ error: '插件文件未找到' });
@@ -339,6 +346,7 @@ export function registerPluginRoutes(app: Express) {
     const [deleted] = plugins.splice(index, 1);
     await savePluginsToDisk();
     addSystemLog('INFO', 'plugin', `已删除插件：${deleted.name}`);
+    broadcastPluginStatus(deleted.id, 'deleted');
     res.json({ ok: true, deleted });
   });
   // 插件健康监控 API
